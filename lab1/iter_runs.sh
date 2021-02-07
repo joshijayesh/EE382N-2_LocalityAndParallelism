@@ -5,10 +5,9 @@ TARGET=('basicmatmul' 'cacheaware')
 CACHEAWARE='cacheaware'
 N=(32 512 4096)  # Assuming square matrices
 
-# These are NOT calculated properly yet...
-B1=128
-B2=8192
-B3=16384
+B1=64  # 104, round down to 64
+B2=512  # 591, round down to 512
+B3=2048  # 3344, round down to 2048
 
 BASICPERF='cycles:u,instructions:u,cache-references:u,cache-misses:u'
 L1PERF='L1-dcache-load:u,L1-dcache-load-misses:u,L1-dcache-stores:u,L1-dcache-store-misses:u'
