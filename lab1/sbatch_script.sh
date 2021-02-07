@@ -7,7 +7,7 @@
 #SBATCH -p skx-dev # Queue (partition) name
 #SBATCH -N 1               # Total # of nodes (must be 1 for serial)
 #SBATCH -n 1               # Total # of mpi tasks (should be 1 for serial)
-#SBATCH -t 00:10:00        # Run time (hh:mm:ss)
+#SBATCH -t 02:00:00        # Run time (hh:mm:ss)
 #SBATCH --mail-user=jayeshjo1@utexas.edu
 #SBATCH --mail-type=all    # Send email at begin and end of job
 
@@ -25,6 +25,8 @@ rm -rf results  # to get a fresh start
 
 ./iter_runs.sh basicmatmul 32 32 32
 ./iter_runs.sh basicmatmul 512 512 512
-# ./iter_runs basicmatmul 4096 4096 4096
+./iter_runs.sh basicmatmul 4096 4096 4096
+
+python parser.py
 
 # ---------------------------------------------------

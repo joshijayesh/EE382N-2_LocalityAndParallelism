@@ -5,7 +5,7 @@ if test "$#" -ne 4; then
     exit 1
 fi
 
-NUM_RUNS=5
+NUM_RUNS=20
 TARGET=$1
 N=$2
 M=$3
