@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <matmul_defaults.h>
 
+#define NUM_ADDL_ARGS 0
+
 extern int N, M, P;
 
 // calculate C = AxB
@@ -45,7 +47,7 @@ int main(int argc, char *argv[]) {
   float** B;
   float** C;
 
-  get_args(argc, argv);
+  get_args(NUM_ADDL_ARGS, "", argc, argv);
 
   create_matrix(&A, M, P);
   create_matrix(&B, P, N);

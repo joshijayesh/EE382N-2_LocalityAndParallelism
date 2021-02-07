@@ -11,14 +11,16 @@
 
 int N, M, P;
 
-void usage() {
-    fprintf(stderr, "usage: basicmatmul N M P\n");
+void usage(const char* addl_str) {
+    fprintf(stderr, "usage: basicmatmul N M P ");
+    fprintf(stderr, addl_str);
+    fprintf(stderr, "\n");
     exit(ERROR_INVALID_ARGS);
 }
 
-void get_args(int argc, char *argv[]) {
-  if(argc != NUM_ARGS) {
-      usage();
+void get_args(int additional_args, const char* addl_str, int argc, char *argv[]) {
+  if(argc != NUM_ARGS + additional_args) {
+      usage(addl_str);
   }
 
   N = atoi(argv[ARG_N_INDEX]);

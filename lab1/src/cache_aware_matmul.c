@@ -2,7 +2,13 @@
 #include <stdio.h>
 #include <matmul_defaults.h>
 
+#define ARG_B1_INDEX NUM_ARGS + 0
+#define ARG_B2_INDEX NUM_ARGS + 1
+#define ARG_B3_INDEX NUM_ARGS + 2
+#define NUM_ADDL_ARGS 1
+
 extern int N, M, P;
+int B1, B2, B3;
 
 // calculate C = AxB
 void matmul(float **A, float **B, float **C){
@@ -45,7 +51,8 @@ int main(int argc, char *argv[]) {
   float** B;
   float** C;
 
-  get_args(argc, argv);
+  get_args(NUM_ADDL_ARGS, "B1", argc, argv);
+  B1 = atoi(argv[ARG_B1_INDEX]);
 
   create_matrix(&A, M, P);
   create_matrix(&B, P, N);
