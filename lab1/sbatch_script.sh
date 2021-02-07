@@ -6,7 +6,7 @@
 #SBATCH -e logs/basicmatmul.e%j       # Name of stderr error file
 #SBATCH -p skx-dev # Queue (partition) name
 #SBATCH -N 1               # Total # of nodes (must be 1 for serial)
-#SBATCH -n 1               # Total # of mpi tasks (should be 1 for serial)
+#SBATCH -n 48              # Total # of mpi tasks (should be 1 for serial)
 #SBATCH -t 02:00:00        # Run time (hh:mm:ss)
 #SBATCH --mail-user=jayeshjo1@utexas.edu
 #SBATCH --mail-type=all    # Send email at begin and end of job
@@ -18,14 +18,17 @@ date
 lscpu
 
 perf list > perf_out.txt
+rm -f results/*/*.out  # to get a fresh start
 
-rm -rf results  # to get a fresh start
-
-# Launch serial code...
-
-./iter_runs.sh basicmatmul 32 32 32
-./iter_runs.sh basicmatmul 512 512 512
-./iter_runs.sh basicmatmul 4096 4096 4096
+# launcher
+module load launcher
+working_dir=$( realpath . )
+export LAUNCHER_PLUGIN_DIR=$LAUNCHER_DIR/plugins
+export LAUNCHER_RMI=SLURM
+export LAUNCHER_WORKDIR=$working_dir
+export LAUNCHER_JOB_FILE=$LAUNCHER_WORKDIR/launcher_jobs.sh
+echo "CHECKING WORKING DIR: $LAUNCHER_JOB_FILE"
+$LAUNCHER_DIR/paramrun
 
 python parser.py
 
