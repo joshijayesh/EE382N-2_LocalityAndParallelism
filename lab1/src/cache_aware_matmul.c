@@ -77,10 +77,10 @@ int main(int argc, char *argv[]) {
     float** B;
     float** C;
 
-    get_args(NUM_ADDL_ARGS, "B1", argc, argv);
+    get_args(NUM_ADDL_ARGS, "B1 B2 B3", argc, argv);
     B1 = atoi(argv[ARG_B1_INDEX]);
     B2 = atoi(argv[ARG_B2_INDEX]);
-    B3 = atoi(argv[ARG_B3_INDEX]);
+    B2 = atoi(argv[ARG_B2_INDEX]);
 
     create_matrix(&A, M, P);
     create_matrix(&B, P, N);
