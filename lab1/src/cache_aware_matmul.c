@@ -41,7 +41,7 @@ void matmul(float **A, float **B, float **C){
                                                 sum = 0.0f; // temporary value
                                                 for (k=k_B1; k<(k_B1 + B1); k++) {
                                                     // dot product of row from A and column from B
-                                                    sum += A[i][k]*B[k][j];
+                                                    sum += A[i][k] * B[k][j];
                                                 }
                                                 C[i][j] = sum;
                                             }
@@ -57,6 +57,7 @@ void matmul(float **A, float **B, float **C){
     }
 }
 
+
 // function to allocate a matrix on the heap
 // creates an mXn matrix and returns the pointer.
 //
@@ -70,6 +71,8 @@ void create_matrix(float*** A, int m, int n) {
          T[i] = (float*)malloc(n*sizeof(float));
     }
     *A = T;
+
+    // *A = (float*) malloc(m * n * sizeof(float));
 }
 
 int main(int argc, char *argv[]) {
