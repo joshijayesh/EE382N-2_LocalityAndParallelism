@@ -1,7 +1,8 @@
 #!/bin/bash
 
-NUM_RUNS=5
-TARGET=('basicmatmul' 'cacheaware')
+NUM_RUNS=20
+# TARGET=('basicmatmul' 'cacheaware')
+TARGET=("basicmatmul" "basicmatmul_avx" "cacheaware" "cacheaware_avx")
 CACHEAWARE='cacheaware'
 N=(32 512 4096)  # Assuming square matrices
 
@@ -19,7 +20,7 @@ for target in "${TARGET[@]}"; do
         b2_tgt=$((B2 < side ? B2 : side))
         b3_tgt=$((B3 < side ? B3 : side))
 
-        if [[ "$target" == "$CACHEAWARE" ]]; then
+        if [[ "$target" == *"$CACHEAWARE"* ]]; then
             b1_arg="$b1_tgt"
             b2_arg="$b2_tgt"
             b3_arg="$b3_tgt"

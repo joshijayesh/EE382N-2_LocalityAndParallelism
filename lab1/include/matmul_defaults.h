@@ -9,6 +9,10 @@
 
 #define ERROR_INVALID_ARGS 1
 
+#define AVX_LEVEL 512
+#define NUM_FLOATS_PER_AVX AVX_LEVEL / 32  // 32 = size of float in bits
+#define AVX_ALIGNMENT NUM_FLOATS_PER_AVX * 4  // 4 = size of float in bytes
+
 int N, M, P;
 
 void usage(const char* addl_str) {
