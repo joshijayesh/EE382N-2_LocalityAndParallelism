@@ -19,6 +19,7 @@ lscpu
 
 perf list > perf_out.txt
 rm -f results/*/*.out  # to get a fresh start
+rm -f results/*/*.*.data  # to get a fresh start
 
 # launcher
 module load launcher
