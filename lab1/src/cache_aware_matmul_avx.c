@@ -39,7 +39,7 @@ void matmul(float **A, float **B, float **C){
                                             // for each row of C
                                             for (j=j_B1; j<(j_B1 + B1); j++) {
                                                 // for each column of C
-                                                __m512 sum = _mm512_set1_ps(0.0f);
+                                                __m512 sum = _mm512_load_ps(&C[j][i]);
                                                 for (k=k_B1; k<(k_B1 + B1); k++) {
                                                     // dot product of row from A and column from B
                                                     // sum += A[i][k] * B[k][j];
