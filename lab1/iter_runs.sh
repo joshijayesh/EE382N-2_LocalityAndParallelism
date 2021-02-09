@@ -1,7 +1,7 @@
 #!/bin/bash
 
 NUM_RUNS=20
-# TARGET=('basicmatmul' 'cacheaware')
+#TARGET=("basicmatmul_avx")
 TARGET=("basicmatmul" "basicmatmul_avx" "cacheaware" "cacheaware_avx")
 CACHEAWARE='cacheaware'
 N=(32 512 4096)  # Assuming square matrices
@@ -34,9 +34,12 @@ for target in "${TARGET[@]}"; do
         mkdir -p $TARGET_DIR
         for ((run = 1; run <= $NUM_RUNS; run++))
         do
-            echo "perf stat -o $TARGET_DIR/basic_perf_run${run}.out -e $BASICPERF ./$target $side $side $side $b1_arg $b2_arg $b3_arg" 
-            echo "perf stat -o $TARGET_DIR/l1_perf_run${run}.out -e $L1PERF ./$target $side $side $side $b1_arg $b2_arg $b3_arg"
-            echo "perf stat -o $TARGET_DIR/llc_perf_run${run}.out -e $LLCPERF ./$target $side $side $side $b1_arg $b2_arg $b3_arg" 
+            #echo "perf stat -o $TARGET_DIR/basic_perf_run${run}.out -e $BASICPERF ./$target $side $side $side $b1_arg $b2_arg $b3_arg" 
+            # echo "perf stat -o $TARGET_DIR/l1_perf_run${run}.out -e $L1PERF ./$target $side $side $side $b1_arg $b2_arg $b3_arg"
+            # echo "perf stat -o $TARGET_DIR/llc_perf_run${run}.out -e $LLCPERF ./$target $side $side $side $b1_arg $b2_arg $b3_arg" 
+            echo "./perf_report_sched.sh $TARGET_DIR/basic_run${run}.out $BASICPERF ./$target $side $side $side $b1_arg $b2_arg $b3_arg"
+            echo "./perf_report_sched.sh $TARGET_DIR/l1_run${run}.out $L1PERF ./$target $side $side $side $b1_arg $b2_arg $b3_arg"
+            echo "./perf_report_sched.sh $TARGET_DIR/llc_run${run}.out $LLCPERF ./$target $side $side $side $b1_arg $b2_arg $b3_arg"
         done
     done
 done
