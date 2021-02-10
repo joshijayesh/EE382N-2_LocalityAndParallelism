@@ -85,7 +85,7 @@ void transpose_matrix(float **A, float **B,int m, int n){
 
 int main(int argc, char *argv[]) {
     float** A;
-    float** B;
+    float** B, **D;
     float** C;
 
     get_args(NUM_ADDL_ARGS, "B1 B2 B3", argc, argv);
