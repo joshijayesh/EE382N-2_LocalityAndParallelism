@@ -7,7 +7,7 @@ CFLAGS = -O2 -I $(IDIR)
 AVXFLAGS = -march=skylake-avx512
 # AVXFLAGS = -mavx2
 DEPS = $(wildcard $(IDIR/)*.h)
-ALLMAINS := $(ODIR)/cache_aware_matmul.o $(ODIR)/cache_oblivious_matmul.o $(ODIR)/basic_matmul.o $(ODIR)/basic_matmul_avx.o $(ODIR)/cache_aware_matmul_avx.o
+ALLMAINS := $(ODIR)/cache_aware_matmul.o $(ODIR)/cache_oblivious_matmul.o $(ODIR)/basic_matmul.o $(ODIR)/basic_matmul_avx.o $(ODIR)/cache_aware_matmul_avx.o $(ODIR)/basic_matmul_col_major.o
 
 BASICMATMUL = basicmatmul
 BASICMATMUL_IGNORE = $(filter-out $(ODIR)/basic_matmul.o, $(ALLMAINS))
@@ -24,10 +24,13 @@ BASICMATMUL_AVX_IGNORE = $(filter-out $(ODIR)/basic_matmul_avx.o, $(ALLMAINS))
 CACHEAWAREMATMUL_AVX = cacheaware_avx
 CACHEAWAREMATMUL_AVX_IGNORE = $(filter-out $(ODIR)/cache_aware_matmul_avx.o, $(ALLMAINS))
 
+BASICMATMUL_COLMAJOR = basicmatmul_colmajor
+BASICMATMUL_COLMAJOR_IGNORE = $(filter-out $(ODIR)/basic_matmul_col_major.o, $(ALLMAINS))
+
 SRCS := $(wildcard $(SDIR)/*.c)
 OBJS := $(patsubst $(SDIR)/%.c, $(ODIR)/%.o,$(SRCS))
 
-all: $(BASICMATMUL) $(CACHEAWAREMATMUL) $(CACHEOBVMATMUL) $(BASICMATMUL_AVX) $(CACHEAWAREMATMUL_AVX)
+all: $(BASICMATMUL) $(CACHEAWAREMATMUL) $(CACHEOBVMATMUL) $(BASICMATMUL_AVX) $(CACHEAWAREMATMUL_AVX) $(BASICMATMUL_COLMAJOR)
 
 $(ODIR)/%.o: $(SDIR)/%.c $(DEPS)
 	mkdir -p $(ODIR)
@@ -46,6 +49,9 @@ $(CACHEAWAREMATMUL_AVX): $(filter-out $(CACHEAWAREMATMUL_AVX_IGNORE), $(OBJS))
 	$(CC) -o $@ $^ $(CFLAGS) 
 
 $(CACHEOBVMATMUL): $(filter-out $(CACHEOBVMATMUL_IGNORE), $(OBJS))
+	$(CC) -o $@ $^ $(CFLAGS)
+
+$(BASICMATMUL_COLMAJOR): $(filter-out $(BASICMATMUL_COLMAJOR_IGNORE), $(OBJS))
 	$(CC) -o $@ $^ $(CFLAGS)
 
 .PHONY: clean

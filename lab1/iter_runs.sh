@@ -2,7 +2,7 @@
 
 NUM_RUNS=20
 #TARGET=("basicmatmul_avx")
-TARGET=("basicmatmul" "basicmatmul_avx" "cacheaware" "cacheaware_avx")
+TARGET=("basicmatmul" "basicmatmul_avx" "cacheaware" "cacheaware_avx", "cacheoblivious", "basicmatmul_colmajor")
 CACHEAWARE='cacheaware'
 N=(32 512 4096)  # Assuming square matrices
 
