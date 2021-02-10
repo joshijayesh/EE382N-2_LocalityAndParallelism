@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <matmul_defaults.h>
+#include "../include/matmul_defaults.h"
 
 #define NUM_ADDL_ARGS 0
 
@@ -50,7 +50,7 @@ void transpose_matrix(float **A, float **B,int m, int n){
   }
 }
 
-int main() {
+int main(int argc, char *argv[]) {
   float** A;
   float** B, **D;
   float** C;
