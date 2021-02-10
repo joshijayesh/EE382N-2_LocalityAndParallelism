@@ -14,11 +14,22 @@ extern int M,N,P;
 void matmul_cache_oblivious(float **A, float **B, float **C,int M,int N,int P,int offset_m,int offset_n,int offset_p){
 
 
-    if((M==0)||(N==0)||(P==0))
-        return;
-
-    if((M==1)&&(N==1)&&(P==1))
-        C[offset_m][offset_n]+=A[offset_m][offset_p]*B[offset_p][offset_n];
+    if(M+N+P<=48)  //expecting 16x16 matrices
+    {
+	int i,j,k;
+	for(int i=0;i<M;i++)
+	{
+		for(int j=0;j<N;j++)
+		{
+		float sum=0;
+		     for(int k=0;k<P;k++)
+		     {
+		      sum+= A[offset_m+i][offset_p+k]*B[offset_p+k][offset_n+j];
+		     }		
+		C[offset_m+i][offset_n+j]+=sum;
+		}
+	 }
+      }
 
     else
     {
