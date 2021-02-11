@@ -1,8 +1,8 @@
 #!/bin/bash
 
-NUM_RUNS=10
+NUM_RUNS=20
 #TARGET=("basicmatmul_avx")
-TARGET=("basicmatmul_avx" "basicmatmul_avx_unroll" "cacheaware_avx" "cacheaware_avx_unroll", "cacheoblivious_avx", "cacheoblivious")
+TARGET=("basicmatmul_avx" "basicmatmul_avx_unroll" "cacheaware_avx" "cacheaware_avx_unroll" "cacheoblivious_avx" "cacheoblivious")
 #TARGET=("basicmatmul" "basicmatmul_col_major" "basicmatmul_avx" "cacheaware" "cacheaware_avx")
 CACHEAWARE='cacheaware'
 N=(32 512 4096)  # Assuming square matrices
@@ -40,8 +40,8 @@ for target in "${TARGET[@]}"; do
             # echo "perf stat -o $TARGET_DIR/l1_perf_run${run}.out -e $L1PERF ./$target $side $side $side $b1_arg $b2_arg $b3_arg"
             # echo "perf stat -o $TARGET_DIR/llc_perf_run${run}.out -e $LLCPERF ./$target $side $side $side $b1_arg $b2_arg $b3_arg" 
             echo "./perf_report_sched.sh $TARGET_DIR/basic_run${run}.out $BASICPERF ./$target $side $side $side $b1_arg $b2_arg $b3_arg"
-            echo "./perf_report_sched.sh $TARGET_DIR/l1_run${run}.out $L1PERF ./$target $side $side $side $b1_arg $b2_arg $b3_arg"
-            echo "./perf_report_sched.sh $TARGET_DIR/llc_run${run}.out $LLCPERF ./$target $side $side $side $b1_arg $b2_arg $b3_arg"
+            # echo "./perf_report_sched.sh $TARGET_DIR/l1_run${run}.out $L1PERF ./$target $side $side $side $b1_arg $b2_arg $b3_arg"
+            # echo "./perf_report_sched.sh $TARGET_DIR/llc_run${run}.out $LLCPERF ./$target $side $side $side $b1_arg $b2_arg $b3_arg"
             echo "./perf_report_sched.sh $TARGET_DIR/retired_run${run}.out $RETIREDPERF ./$target $side $side $side $b1_arg $b2_arg $b3_arg"
         done
     done
