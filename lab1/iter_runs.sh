@@ -1,8 +1,8 @@
 #!/bin/bash
 
 NUM_RUNS=20
-#TARGET=("basicmatmul_avx")
-TARGET=("basicmatmul_avx" "basicmatmul_avx_unroll" "cacheaware_avx" "cacheaware_avx_unroll" "cacheoblivious_avx" "cacheoblivious")
+TARGET=("cacheaware_avx" "cacheaware_avx_unroll" "cacheoblivious_avx" "cacheoblivious_avx_unroll")
+# TARGET=("basicmatmul_avx" "basicmatmul_avx_unroll" "cacheaware_avx" "cacheaware_avx_unroll" "cacheoblivious_avx" "cacheoblivious" "basicmatmul", "basicmatmul_col_major", "cacheaware", "cacheaware_col_major")
 #TARGET=("basicmatmul" "basicmatmul_col_major" "basicmatmul_avx" "cacheaware" "cacheaware_avx")
 CACHEAWARE='cacheaware'
 N=(32 512 4096)  # Assuming square matrices

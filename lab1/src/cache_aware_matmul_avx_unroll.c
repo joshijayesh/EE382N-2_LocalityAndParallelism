@@ -58,7 +58,7 @@ void matmul(float **A, float **B, float **C){
                                                     }
                                                 }
                                                 for(i_u = 0; i_u < LOOP_UNROLL_CONSTANT; i_u++){
-                                                    _mm512_storeu_ps(&C[(i_u * NUM_FLOATS_PER_AVX) + i][j], sum[i_u]);
+                                                    _mm512_storeu_ps(&C[j][(i_u * NUM_FLOATS_PER_AVX) + i], sum[i_u]);
                                                 }
                                             }
                                         }
