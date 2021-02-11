@@ -20,9 +20,9 @@ void matmul(float **A, float **B, float **C){
             sum = 0.0f; // temporary value
             for (k=0; k<P; k++) {
                 // dot product of row from A and column from B
-                sum += A[i + (k * N)]*B[k + (j * P)];
+                sum += A[i][k]*B[k][j];
             }
-            C[i + (j * P)] = sum;
+            C[i][j] = sum;
         }
     }
 }
