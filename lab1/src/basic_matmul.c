@@ -7,7 +7,7 @@
 extern int N, M, P;
 
 // calculate C = AxB
-void matmul(float *A, float *B, float *C){
+void matmul(float **A, float **B, float **C){
     float sum;
     int     i;
     int     j;
@@ -20,9 +20,9 @@ void matmul(float *A, float *B, float *C){
             sum = 0.0f; // temporary value
             for (k=0; k<P; k++) {
                 // dot product of row from A and column from B
-                sum += A[i + (k * N)]*B[k + (j * P)];
+                sum += A[i][k]*B[k][j];
             }
-            C[i + (j * P)] = sum;
+            C[i][j] = sum;
         }
     }
 }
@@ -31,14 +31,24 @@ void matmul(float *A, float *B, float *C){
 // creates an mXn matrix and returns the pointer.
 //
 // the matrices are in row-major order.
-void create_matrix(float** A, int m, int n) {
-    *A = (float*) malloc(m * n * sizeof(float));
+//void create_matrix(float** A, int m, int n) {
+//    *A = (float*) malloc(m * n * sizeof(float));
+//}
+void create_matrix(float*** A, int m, int n) {
+  float **T = 0;
+  int i;
+
+  T = (float**)malloc( m*sizeof(float*));
+  for ( i=0; i<m; i++ ) {
+     T[i] = (float*)malloc(n*sizeof(float));
+  }
+  *A = T;
 }
 
 int main(int argc, char *argv[]) {
-    float* A;
-    float* B;
-    float* C;
+    float** A;
+    float** B;
+    float** C;
 
     get_args(NUM_ADDL_ARGS, "", argc, argv);
 
