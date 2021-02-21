@@ -274,8 +274,8 @@ class LRU
     {
         // g++ -O3 too dumb to do CSE on following lines?!
         const UINT32 index = _lru_list[0];
-        const BOOL dirty_evicted = _tags[0].dirty();
         _lru_list.pop_front();  // First element of the list
+        const BOOL dirty_evicted = _tags[index].dirty();
 
         _tags[index] = tag;
         if(store)
