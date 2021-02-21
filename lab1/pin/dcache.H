@@ -204,11 +204,25 @@ class LRU
     }
 
     inline VOID FindAndReplaceLRU(UINT32 index) {
+        /* Use this to verify, though note that this will output a TON
+        std::cout << "Before: <" << index << "> ";
+        for(UINT32 e : _lru_list) {
+            std::cout << e << " ";
+        }
+        std::cout << "\n";*/
+
         auto it = std::find(_lru_list.begin(), _lru_list.end(), index);
         if(it != _lru_list.end()) {
             _lru_list.erase(_lru_list.begin() + (it - _lru_list.begin()));
             _lru_list.push_back(index);
         } // Else, already at the back
+
+        /*
+        std::cout << "After: ";
+        for(UINT32 e : _lru_list) {
+            std::cout << e << " ";
+        }
+        std::cout << "\n";*/
     }
 
   public:
@@ -260,8 +274,8 @@ class LRU
     {
         // g++ -O3 too dumb to do CSE on following lines?!
         const UINT32 index = _lru_list[0];
+        const BOOL dirty_evicted = _tags[0].dirty();
         _lru_list.pop_front();  // First element of the list
-        const BOOL dirty_evicted = _tags[index].dirty();
 
         _tags[index] = tag;
         if(store)
