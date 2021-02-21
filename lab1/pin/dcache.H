@@ -87,11 +87,17 @@ class CACHE_TAG
 {
   private:
     ADDRINT _tag;
+    BOOL _dirty;
 
   public:
-    CACHE_TAG(ADDRINT tag = 0) { _tag = tag; }
+    CACHE_TAG(ADDRINT tag = 0) {
+        _tag = tag;
+        _dirty = false;
+    }
     bool operator==(const CACHE_TAG &right) const { return _tag == right._tag; }
     operator ADDRINT() const { return _tag; }
+    void dirtied() { _dirty = true; }
+    BOOL dirty() { return _dirty; }
 };
 
 
@@ -229,7 +235,7 @@ class LRU
 
     UINT32 GetAssociativity(UINT32 associativity) { return _tagsLastIndex + 1; }
     
-    UINT32 Find(CACHE_TAG tag)
+    UINT32 Find(CACHE_TAG tag, BOOL store)
     {
         bool result = true;
 
@@ -240,6 +246,8 @@ class LRU
             if(_tags[index] == tag){
                 // Update LRU
                 FindAndReplaceLRU(index);
+                if(store) 
+                    _tags[index].dirtied();
                 goto end;
             }
         }
@@ -248,15 +256,20 @@ class LRU
         end: return result;
     }
 
-    VOID Replace(CACHE_TAG tag)
+    BOOL Replace(CACHE_TAG tag, BOOL store)
     {
         // g++ -O3 too dumb to do CSE on following lines?!
         const UINT32 index = _lru_list[0];
         _lru_list.pop_front();  // First element of the list
+        const BOOL dirty_evicted = _tags[index].dirty();
 
         _tags[index] = tag;
+        if(store)
+            _tags[index].dirtied();
 
         _lru_list.push_back(index);
+
+        return dirty_evicted;
     }
 };
 
@@ -424,6 +437,11 @@ string CACHE_BASE::StatsLong(string prefix, CACHE_TYPE cache_type) const
     return out;
 }
 
+typedef struct AccessResult {
+    bool hit;
+    bool dirty_evicted;
+} AccessResult;
+
 
 /*!
  *  @brief Templated cache class with specific cache set allocation policies
@@ -452,9 +470,11 @@ class CACHE : public CACHE_BASE
 
     // modifiers
     /// Cache access from addr to addr+size-1
-    bool Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
+    AccessResult Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType);
     /// Cache access at addr that does not span cache lines
-    bool AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType);
+    AccessResult AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType);
+
+    void WriteBack(ACCESS_TYPE accessType);
 };
 
 /*!
@@ -462,10 +482,10 @@ class CACHE : public CACHE_BASE
  */
 
 template <class SET, UINT32 MAX_SETS, UINT32 STORE_ALLOCATION>
-bool CACHE<SET,MAX_SETS,STORE_ALLOCATION>::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
+AccessResult CACHE<SET,MAX_SETS,STORE_ALLOCATION>::Access(ADDRINT addr, UINT32 size, ACCESS_TYPE accessType)
 {
     const ADDRINT highAddr = addr + size;
-    bool allHit = true;
+    AccessResult result = { .hit=true, .dirty_evicted=false };
 
     const ADDRINT lineSize = LineSize();
     const ADDRINT notLineMask = ~(lineSize - 1);
@@ -478,48 +498,58 @@ bool CACHE<SET,MAX_SETS,STORE_ALLOCATION>::Access(ADDRINT addr, UINT32 size, ACC
 
         SET & set = _sets[setIndex];
 
-        bool localHit = set.Find(tag);
-        allHit &= localHit;
+        bool localHit = set.Find(tag, accessType == ACCESS_TYPE_STORE);
+        result.hit &= localHit;
 
         // on miss, loads always allocate, stores optionally
         if ( (! localHit) && (accessType == ACCESS_TYPE_LOAD || STORE_ALLOCATION == CACHE_ALLOC::STORE_ALLOCATE))
         {
-            set.Replace(tag);
+            result.dirty_evicted |= set.Replace(tag, accessType == ACCESS_TYPE_STORE);
+            // set.Replace(tag, accessType == ACCESS_TYPE_STORE);
         }
 
         addr = (addr & notLineMask) + lineSize; // start of next cache line
     }
     while (addr < highAddr);
 
-    _access[accessType][allHit]++;
+    _access[accessType][result.hit]++;
 
-    return allHit;
+    return result;
 }
 
 /*!
  *  @return true if accessed cache line hits
  */
 template <class SET, UINT32 MAX_SETS, UINT32 STORE_ALLOCATION>
-bool CACHE<SET,MAX_SETS,STORE_ALLOCATION>::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
+AccessResult CACHE<SET,MAX_SETS,STORE_ALLOCATION>::AccessSingleLine(ADDRINT addr, ACCESS_TYPE accessType)
 {
     CACHE_TAG tag;
     UINT32 setIndex;
+
+    AccessResult result = { .hit=false, .dirty_evicted=false };
 
     SplitAddress(addr, tag, setIndex);
 
     SET & set = _sets[setIndex];
 
-    bool hit = set.Find(tag);
+    result.hit = set.Find(tag, accessType == ACCESS_TYPE_STORE);
 
     // on miss, loads always allocate, stores optionally
-    if ( (! hit) && (accessType == ACCESS_TYPE_LOAD || STORE_ALLOCATION == CACHE_ALLOC::STORE_ALLOCATE))
+    if ( (!result.hit) && (accessType == ACCESS_TYPE_LOAD || STORE_ALLOCATION == CACHE_ALLOC::STORE_ALLOCATE))
     {
-        set.Replace(tag);
+        result.dirty_evicted = set.Replace(tag, accessType == ACCESS_TYPE_STORE);
+        // set.Replace(tag, accessType == ACCESS_TYPE_STORE);
     }
 
-    _access[accessType][hit]++;
+    _access[accessType][result.hit]++;
 
-    return hit;
+    return result;
+}
+
+template <class SET, UINT32 MAX_SETS, UINT32 STORE_ALLOCATION>
+void CACHE<SET,MAX_SETS,STORE_ALLOCATION>::WriteBack(ACCESS_TYPE accessType)
+{
+    _access[accessType][true]++;
 }
 
 // define shortcuts

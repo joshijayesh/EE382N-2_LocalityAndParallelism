@@ -115,101 +115,113 @@ COMPRESSOR_COUNTER<ADDRINT, UINT32, COUNTER_HIT_MISS> profile_l2;
 
 /* ===================================================================== */
 
-VOID LoadMulti(ADDRINT addr, UINT32 size, UINT32 instId)
+VOID LoadMulti(ADDRINT addr, UINT32 size, UINT32 instId, UINT32 instId2)
 {
     // first level D-cache
-    const BOOL dl1Hit = dl1->Access(addr, size, CACHE_BASE::ACCESS_TYPE_LOAD);
+    const AccessResult dl1Result = dl1->Access(addr, size, CACHE_BASE::ACCESS_TYPE_LOAD);
 
-    const COUNTER counter = dl1Hit ? COUNTER_HIT : COUNTER_MISS;
+    const COUNTER counter = dl1Result.hit ? COUNTER_HIT : COUNTER_MISS;
     profile_l1[instId][counter]++;
 
-    // second level D-cache
-    const BOOL dl2Hit = dl2->Access(addr, size, CACHE_BASE::ACCESS_TYPE_LOAD);
+    if(dl1Result.hit) {
+        // second level D-cache
+        const AccessResult dl2Result = dl2->Access(addr, size, CACHE_BASE::ACCESS_TYPE_LOAD);
 
-    const COUNTER counter2 = dl2Hit ? COUNTER_HIT : COUNTER_MISS;
-    profile_l2[instId][counter2]++;
+        const COUNTER counter2 = dl2Result.hit ? COUNTER_HIT : COUNTER_MISS;
+        profile_l2[instId2][counter2]++;
+    }
 }
 
 /* ===================================================================== */
 
-VOID StoreMulti(ADDRINT addr, UINT32 size, UINT32 instId)
+VOID StoreMulti(ADDRINT addr, UINT32 size, UINT32 instId, UINT32 instId2)
 {
     // first level D-cache
-    const BOOL dl1Hit = dl1->Access(addr, size, CACHE_BASE::ACCESS_TYPE_STORE);
+    const AccessResult dl1Result = dl1->Access(addr, size, CACHE_BASE::ACCESS_TYPE_STORE);
 
-    const COUNTER counter = dl1Hit ? COUNTER_HIT : COUNTER_MISS;
+    const COUNTER counter = dl1Result.hit ? COUNTER_HIT : COUNTER_MISS;
     profile_l1[instId][counter]++;
 
-    // first level D-cache
-    const BOOL dl2Hit = dl2->Access(addr, size, CACHE_BASE::ACCESS_TYPE_STORE);
+    if(dl1Result.hit) {
+        // second level D-cache
+        const AccessResult dl2Result = dl2->Access(addr, size, CACHE_BASE::ACCESS_TYPE_STORE);
 
-    const COUNTER counter2 = dl2Hit ? COUNTER_HIT : COUNTER_MISS;
-    profile_l2[instId][counter2]++;
+        const COUNTER counter2 = dl2Result.hit ? COUNTER_HIT : COUNTER_MISS;
+        profile_l2[instId2][counter2]++;
+    }
 }
 
 /* ===================================================================== */
 
-VOID LoadSingle(ADDRINT addr, UINT32 instId)
+VOID LoadSingle(ADDRINT addr, UINT32 instId, UINT32 instId2)
 {
     // @todo we may access several cache lines for 
     // first level D-cache
-    const BOOL dl1Hit = dl1->AccessSingleLine(addr, CACHE_BASE::ACCESS_TYPE_LOAD);
+    const AccessResult dl1Result = dl1->AccessSingleLine(addr, CACHE_BASE::ACCESS_TYPE_LOAD);
 
-    const COUNTER counter = dl1Hit ? COUNTER_HIT : COUNTER_MISS;
+    const COUNTER counter = dl1Result.hit ? COUNTER_HIT : COUNTER_MISS;
     profile_l1[instId][counter]++;
 
-    const BOOL dl2Hit = dl2->AccessSingleLine(addr, CACHE_BASE::ACCESS_TYPE_LOAD);
+    if(dl1Result.hit) {
+        const AccessResult dl2Result = dl2->AccessSingleLine(addr, CACHE_BASE::ACCESS_TYPE_LOAD);
 
-    const COUNTER counter2 = dl2Hit ? COUNTER_HIT : COUNTER_MISS;
-    profile_l2[instId][counter2]++;
+        const COUNTER counter2 = dl2Result.hit ? COUNTER_HIT : COUNTER_MISS;
+        profile_l2[instId2][counter2]++;
+    }
 }
 /* ===================================================================== */
 
-VOID StoreSingle(ADDRINT addr, UINT32 instId)
+VOID StoreSingle(ADDRINT addr, UINT32 instId, UINT32 instId2)
 {
     // @todo we may access several cache lines for 
     // first level D-cache
-    const BOOL dl1Hit = dl1->AccessSingleLine(addr, CACHE_BASE::ACCESS_TYPE_STORE);
+    const AccessResult dl1Result = dl1->AccessSingleLine(addr, CACHE_BASE::ACCESS_TYPE_STORE);
 
-    const COUNTER counter = dl1Hit ? COUNTER_HIT : COUNTER_MISS;
+    const COUNTER counter = dl1Result.hit ? COUNTER_HIT : COUNTER_MISS;
     profile_l1[instId][counter]++;
 
-    const BOOL dl2Hit = dl2->AccessSingleLine(addr, CACHE_BASE::ACCESS_TYPE_STORE);
+    if(dl1Result.hit) {
+        const AccessResult dl2Result = dl2->AccessSingleLine(addr, CACHE_BASE::ACCESS_TYPE_STORE);
 
-    const COUNTER counter2 = dl2Hit ? COUNTER_HIT : COUNTER_MISS;
-    profile_l2[instId][counter2]++;
+        const COUNTER counter2 = dl2Result.hit ? COUNTER_HIT : COUNTER_MISS;
+        profile_l2[instId2][counter2]++;
+    }
 }
 
 /* ===================================================================== */
 
 VOID LoadMultiFast(ADDRINT addr, UINT32 size)
 {
-    dl1->Access(addr, size, CACHE_BASE::ACCESS_TYPE_LOAD);
-    dl2->Access(addr, size, CACHE_BASE::ACCESS_TYPE_LOAD);
+    const AccessResult dl1Result = dl1->Access(addr, size, CACHE_BASE::ACCESS_TYPE_LOAD);
+    if(!dl1Result.hit) dl2->Access(addr, size, CACHE_BASE::ACCESS_TYPE_LOAD);
+    if(dl1Result.dirty_evicted) dl2->WriteBack(CACHE_BASE::ACCESS_TYPE_LOAD);
 }
 
 /* ===================================================================== */
 
 VOID StoreMultiFast(ADDRINT addr, UINT32 size)
 {
-    dl1->Access(addr, size, CACHE_BASE::ACCESS_TYPE_STORE);
-    dl2->Access(addr, size, CACHE_BASE::ACCESS_TYPE_STORE);
+    const AccessResult dl1Result = dl1->Access(addr, size, CACHE_BASE::ACCESS_TYPE_STORE);
+    if(!dl1Result.hit) dl2->Access(addr, size, CACHE_BASE::ACCESS_TYPE_STORE);
+    if(dl1Result.dirty_evicted) dl2->WriteBack(CACHE_BASE::ACCESS_TYPE_STORE);
 }
 
 /* ===================================================================== */
 
 VOID LoadSingleFast(ADDRINT addr)
 {
-    dl1->AccessSingleLine(addr, CACHE_BASE::ACCESS_TYPE_LOAD);    
-    dl2->AccessSingleLine(addr, CACHE_BASE::ACCESS_TYPE_LOAD);    
+    const AccessResult dl1Result = dl1->AccessSingleLine(addr, CACHE_BASE::ACCESS_TYPE_LOAD);    
+    if(!dl1Result.hit) dl2->AccessSingleLine(addr, CACHE_BASE::ACCESS_TYPE_LOAD);    
+    if(dl1Result.dirty_evicted) dl2->WriteBack(CACHE_BASE::ACCESS_TYPE_LOAD);
 }
 
 /* ===================================================================== */
 
 VOID StoreSingleFast(ADDRINT addr)
 {
-    dl1->AccessSingleLine(addr, CACHE_BASE::ACCESS_TYPE_STORE);    
-    dl2->AccessSingleLine(addr, CACHE_BASE::ACCESS_TYPE_STORE);    
+    const AccessResult dl1Result = dl1->AccessSingleLine(addr, CACHE_BASE::ACCESS_TYPE_STORE);    
+    if(!dl1Result.hit) dl2->AccessSingleLine(addr, CACHE_BASE::ACCESS_TYPE_STORE);    
+    if(dl1Result.dirty_evicted) dl2->WriteBack(CACHE_BASE::ACCESS_TYPE_STORE);
 }
 
 
@@ -246,6 +258,7 @@ VOID Instruction(INS ins, void * v)
         // map sparse INS addresses to dense IDs
         const ADDRINT iaddr = INS_Address(ins);
         const UINT32 instId = profile_l1.Map(iaddr);
+        const UINT32 instId2 = profile_l2.Map(iaddr);
 
         const BOOL   single = (readSize <= 4);
                 
@@ -257,6 +270,7 @@ VOID Instruction(INS ins, void * v)
                     ins, IPOINT_BEFORE, (AFUNPTR) LoadSingle,
                     IARG_MEMORYREAD_EA,
                     IARG_UINT32, instId,
+                    IARG_UINT32, instId2,
                     IARG_END);
             }
             else
@@ -266,6 +280,7 @@ VOID Instruction(INS ins, void * v)
                     IARG_MEMORYREAD_EA,
                     IARG_MEMORYREAD_SIZE,
                     IARG_UINT32, instId,
+                    IARG_UINT32, instId2,
                     IARG_END);
             }
                 
@@ -296,6 +311,7 @@ VOID Instruction(INS ins, void * v)
         // map sparse INS addresses to dense IDs
         const ADDRINT iaddr = INS_Address(ins);
         const UINT32 instId = profile_l1.Map(iaddr);            
+        const UINT32 instId2 = profile_l2.Map(iaddr);            
         const BOOL   single = (writeSize <= 4);
                 
         if( KnobTrackStores )
@@ -306,6 +322,7 @@ VOID Instruction(INS ins, void * v)
                     ins, IPOINT_BEFORE,  (AFUNPTR) StoreSingle,
                     IARG_MEMORYWRITE_EA,
                     IARG_UINT32, instId,
+                    IARG_UINT32, instId2,
                     IARG_END);
             }
             else
@@ -315,6 +332,7 @@ VOID Instruction(INS ins, void * v)
                     IARG_MEMORYWRITE_EA,
                     IARG_MEMORYWRITE_SIZE,
                     IARG_UINT32, instId,
+                    IARG_UINT32, instId2,
                     IARG_END);
             }
                 
@@ -412,7 +430,7 @@ int main(int argc, char *argv[])
     
     profile_l1.SetKeyName("iaddr          ");
     profile_l1.SetCounterName("dl1cache:miss       dl1cache:hit");
-    profile_l2.SetKeyName("iaddr          ");
+    profile_l2.SetKeyName("iaddr2          ");
     profile_l2.SetCounterName("dl2cache:miss       dl2cache:hit");
 
     COUNTER_HIT_MISS threshold;
