@@ -192,37 +192,54 @@ class LRU
   private:
     CACHE_TAG _tags[MAX_ASSOCIATIVITY];
     UINT32 _tagsLastIndex;
-    std::deque<UINT32> _lru_list;
+    UINT32* _lru_list;
 
     VOID InitLRUList() {
-        _lru_list.clear();
+        _lru_list = new UINT32[_tagsLastIndex + 1];
 
         // Initialize to in order 0...N-1
         for(UINT32 i = 0; i <= _tagsLastIndex; i += 1) {
-            _lru_list.push_back(i);
+            _lru_list[i] = i;
         }
     }
 
     inline VOID FindAndReplaceLRU(UINT32 index) {
-        /* Use this to verify, though note that this will output a TON
-        std::cout << "Before: <" << index << "> ";
-        for(UINT32 e : _lru_list) {
-            std::cout << e << " ";
-        }
-        std::cout << "\n";*/
+        bool replace = false;
+        UINT32 tmp;
 
+        /*
+        std::cout << "Before: <" << index << "> ";
+        for(UINT32 e=0; e <= _tagsLastIndex; e += 1) {
+            std::cout << _lru_list[e] << " ";
+        }
+        std::cout << "\n";
+        */
+
+        for(UINT32 i = 0; i <= _tagsLastIndex; i += 1) {
+            if(replace) {
+                tmp = _lru_list[i];
+                _lru_list[i] = _lru_list[i - 1];
+                _lru_list[i - 1] = tmp;
+            } else {
+                if(_lru_list[i] == index) replace=true;
+            }
+        }
+
+        /*
         auto it = std::find(_lru_list.begin(), _lru_list.end(), index);
         if(it != _lru_list.end()) {
             _lru_list.erase(_lru_list.begin() + (it - _lru_list.begin()));
             _lru_list.push_back(index);
         } // Else, already at the back
+        */
 
         /*
         std::cout << "After: ";
-        for(UINT32 e : _lru_list) {
-            std::cout << e << " ";
+        for(UINT32 e=0; e <= _tagsLastIndex; e += 1) {
+            std::cout << _lru_list[e] << " ";
         }
-        std::cout << "\n";*/
+        std::cout << "\n";
+        */
     }
 
   public:
@@ -274,14 +291,12 @@ class LRU
     {
         // g++ -O3 too dumb to do CSE on following lines?!
         const UINT32 index = _lru_list[0];
-        _lru_list.pop_front();  // First element of the list
+        FindAndReplaceLRU(index);
         const BOOL dirty_evicted = _tags[index].dirty();
 
         _tags[index] = tag;
         if(store)
             _tags[index].dirtied();
-
-        _lru_list.push_back(index);
 
         return dirty_evicted;
     }
