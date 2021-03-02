@@ -4,6 +4,7 @@ import re
 import csv
 import numpy as np
 
+PERF_PATT2 = re.compile(r'(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?)\s+([\w-]+)')
 PERF_PATT = re.compile(r'(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?)\s+Joules\s+([\w/-]+)')
 SAMPLES_PATT = re.compile(r'of event \'(.+):u\'')
 EVENTS_PATT = re.compile(r'\(approx.\): (.+)')
@@ -29,6 +30,16 @@ def parse_results(src):
         with open(output, "r") as results_file:
             for line in results_file:
                 match = PERF_PATT.search(line.split("#")[0])
+                if(match):
+                    num = match.groups()[0]
+                    label = match.groups()[-1]
+                    if(represents_int(label)): continue
+                    num = float(num.replace(',', ''))
+
+                    results.setdefault(label, []).append(num)
+                    continue
+
+                match = PERF_PATT2.search(line.split("#")[0])
                 if(match):
                     num = match.groups()[0]
                     label = match.groups()[-1]
@@ -98,6 +109,7 @@ def main():
 
                     gflops_rows.append([alg_name, nmp, gflops_prog, gflops_matmul])
 
+    # with open(base_path + "parsed.csv", "w", newline="") as csv_file:
     with open(base_path + "parsed.csv", "wb") as csv_file:
         csv_writer = csv.writer(csv_file)
         csv_writer.writerows(rows)
