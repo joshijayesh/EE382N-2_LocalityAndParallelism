@@ -32,7 +32,6 @@ def parse_results(src):
                 if(match):
                     num = match.groups()[0]
                     label = match.groups()[-1]
-                    print(label)
                     if(represents_int(label)): continue
                     num = float(num.replace(',', ''))
 
@@ -99,7 +98,7 @@ def main():
 
                     gflops_rows.append([alg_name, nmp, gflops_prog, gflops_matmul])
 
-    with open(base_path + "parsed.csv", "w", newline="") as csv_file:
+    with open(base_path + "parsed.csv", "wb") as csv_file:
         csv_writer = csv.writer(csv_file)
         csv_writer.writerows(rows)
 
