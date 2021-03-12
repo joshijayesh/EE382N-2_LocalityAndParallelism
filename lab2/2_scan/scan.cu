@@ -12,7 +12,10 @@
 #include "CycleTimer.h"
 
 #define MAX_WARP_LEVEL 5
-#define PRINT_SIZE 128
+#define PRINT_SIZE 1024
+#define THREADS_PER_BLOCK 256
+#define NUM_LEVELS 10
+// #define DEBUG_PRINTS
 
 extern float toBW(int bytes, float sec);
 
@@ -108,6 +111,7 @@ exclusive_scan_upsweep_opt(int* device_in, int N, int length, int* device_result
      }
 }
 
+
 __global__ void
 exclusive_scan_downsweep(int* device_in, int N, int length, int* device_result, int multiplier) {
     // basic implementation for quick check -- not getting any points with this
@@ -184,7 +188,7 @@ void exclusive_scan_up(int* device_start, int length, int* device_result)
     // synchronization, so this below code will optimize it by only needing device wide synchronization ~1-3x 
     // per up/down sweeps => 2-6x total
 
-    uint32_t threads_per_block = 256; // How many do we want??
+    uint32_t threads_per_block = THREADS_PER_BLOCK; // How many do we want??
     uint32_t next_pow2 = nextPow2(length);  // Next pow2 is setup for us :)
 
     // Working size is half of target length, since the first execution is always N / 2 elements
@@ -235,7 +239,7 @@ void exclusive_scan(int* device_start, int length, int* device_result)
     // synchronization, so this below code will optimize it by only needing device wide synchronization ~1-3x 
     // per up/down sweeps => 2-6x total
 
-    uint32_t threads_per_block = 128; // How many do we want??
+    uint32_t threads_per_block = THREADS_PER_BLOCK; // How many do we want??
     uint32_t next_pow2 = nextPow2(length);  // Next pow2 is setup for us :)
 
     // Working size is half of target length, since the first execution is always N / 2 elements
@@ -258,7 +262,6 @@ void exclusive_scan(int* device_start, int length, int* device_result)
         // printf("Executing Upsweep %d N=%d Mult=%d...\n", i, current_working_size, multiplier);
         exclusive_scan_upsweep_opt<<<i, threads_per_block>>>
             (device_start, current_working_size, next_pow2, device_result, multiplier);
-
         multiplier *= threads_per_block;  // minor optimization to put this before cudaDeviceSync :P
         current_working_size = (threads_per_block * multiplier) > working_size ? working_size : (threads_per_block * multiplier);
 
@@ -279,7 +282,7 @@ void exclusive_scan(int* device_start, int length, int* device_result)
     for(int i = 1; ; i *= threads_per_block) {
         if(i > num_blocks) i = num_blocks;
         // printf("Executing Downsweep %d N=%d Mult=%d...\n", i, current_working_size, multiplier);
-        exclusive_scan_downsweep<<<i, threads_per_block>>>
+        exclusive_scan_downsweep_opt<<<i, threads_per_block>>>
             (device_start, current_working_size, next_pow2, device_result, multiplier);
 
         multiplier /= threads_per_block;  // Needs to be on top because the for loop above will do 1 excess step of multiplier
@@ -440,9 +443,11 @@ int find_repeats(int *device_input, int length, int *device_output) {
      * it requires that. However, you must ensure that the results of
      * find_repeats are correct given the original length.
      */    
-    uint32_t threads_per_block = 256; // How many do we want??
+    uint32_t threads_per_block = THREADS_PER_BLOCK; // How many do we want??
     uint32_t next_pow2 = nextPow2(length);  // Next pow2 is setup for us :)
     int num_repeats[1];
+    // int *temp_storage;
+    // cudaMalloc((void **) &temp_storage, next_pow2 * sizeof(int));
 
     // Stage 1:
     // Set value of the output to 1 if adjacent are equal
@@ -451,10 +456,12 @@ int find_repeats(int *device_input, int length, int *device_output) {
     find_repeats_stage1<<<num_blocks, threads_per_block>>>
         (device_input, length, device_output);
     cudaDeviceSynchronize();
+    // printf("Finish stage1\n");
 
     // Stage 2:
     // Compute indexes via exclusive scan
     exclusive_scan(device_input, length, device_output);
+    //printf("Finish stage2\n");
 
     // Stage 3:
     // Copy the last index into results
@@ -462,15 +469,15 @@ int find_repeats(int *device_input, int length, int *device_output) {
 
     // Stage 4:
     // Properly setup the output
-    // Note results will be in device_input -- TODO: Followup, is this okay to do?
     find_repeats_stage4<<<num_blocks, threads_per_block>>>
         (device_output, length, device_input);
     cudaDeviceSynchronize();
+    // printf("Finish stage4\n");
 
-    // Stage 5:
-    // Copy over results from input to output
     find_repeats_stage5<<<num_blocks, threads_per_block>>>
         (device_input, length, device_output);
+
+    // free(temp_storage);
 
     return num_repeats[0];
 }
