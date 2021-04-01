@@ -34,7 +34,7 @@ circleInBox(
     float distX = closestX - circleX;
     float distY = closestY - circleY;
 
-    if ( ((distX*distX) + (distY*distY)) <= (circleRadius*circleRadius) ) {
+    if ( ((distX*distX) + (distY*distY)) <= (1.1*circleRadius*circleRadius) ) {
         return 1;
     } else {
         return 0;
