@@ -13,7 +13,10 @@
 #include "noise.h"
 #include "sceneLoader.h"
 #include "util.h"
+#include "CycleTimer.h"
 
+
+#define noOfCirclePerThread 1024
 ////////////////////////////////////////////////////////////////////////////////////////
 // Putting all the cuda kernels here
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -31,6 +34,8 @@ struct GlobalConstants {
     int imageWidth;
     int imageHeight;
     float* imageData;
+    float* circleimageData;
+
 };
 
 // Global variable that is in scope, but read-only, for all cuda
@@ -45,6 +50,9 @@ __constant__ GlobalConstants cuConstRendererParams;
 __constant__ int    cuConstNoiseYPermutationTable[256];
 __constant__ int    cuConstNoiseXPermutationTable[256];
 __constant__ float  cuConstNoise1DValueTable[256];
+__constant__ int noOfCircleThreads;
+
+int noOfCircleThreads_temp;
 
 // color ramp table needed for the color ramp lookup shader
 #define COLOR_MAP_SIZE 5
@@ -105,6 +113,32 @@ __global__ void kernelClearImage(float r, float g, float b, float a) {
     *(float4*)(&cuConstRendererParams.imageData[offset]) = value;
 }
 
+/// Clear new space for parallel circles thread temp area
+__global__ void kernelClearCircleImage(float r, float g, float b, float a) {
+
+    int imageX = blockIdx.x * blockDim.x + threadIdx.x;
+    int imageY = blockIdx.y * blockDim.y + threadIdx.y;
+    int i = blockIdx.z * blockDim.z + threadIdx.z;
+
+    int width = cuConstRendererParams.imageWidth;
+    int height = cuConstRendererParams.imageHeight;
+
+    if (imageX >= width || imageY >= height)
+        return;
+
+    if (i >= noOfCircleThreads)
+        return;
+
+    int offset = 4 * (imageY * width + imageX);
+    float4* imgPtr = (float4*)(&cuConstRendererParams.imageData[offset]);
+    float4 Color = *imgPtr;
+    // float4 value0 = make_float4(Color.x, Color.y, Color.z, Color.w);
+    float4 value1 = make_float4(r, g, b, a);
+    float4 value = (i ==0) ? Color : value1;
+
+    *(float4*)(&cuConstRendererParams.circleimageData[4*i*width*height +offset]) = value; 
+    
+}
 // kernelAdvanceFireWorks
 //
 // Update the position of the fireworks (if circle is firework)
@@ -318,21 +352,12 @@ __global__ void kernelAdvanceSnowflake() {
 // pixel from the circle.  Update of the image is done in this
 // function.  Called by kernelRenderCircles()
 __device__ __inline__ void
-shadePixel(int circleIndex, float2 pixelCenter, float3 p, float4* imagePtr) {
-
-    float diffX = p.x - pixelCenter.x;
-    float diffY = p.y - pixelCenter.y;
-    float pixelDist = diffX * diffX + diffY * diffY;
-
-    float rad = cuConstRendererParams.radius[circleIndex];;
-    float maxDist = rad * rad;
-
-    // circle does not contribute to the image
-    if (pixelDist > maxDist)
-        return;
+shadePixel(int circleIndex, float2 pixelCenter, float3 p,float normPixelDist,float4* circleImagePtr) {
 
     float3 rgb;
     float alpha;
+
+    // printf("Entered shadePixel\n");
 
     // there is a non-zero contribution.  Now compute the shading value
 
@@ -345,7 +370,6 @@ shadePixel(int circleIndex, float2 pixelCenter, float3 p, float4* imagePtr) {
         const float kCircleMaxAlpha = .5f;
         const float falloffScale = 4.f;
 
-        float normPixelDist = sqrt(pixelDist) / rad;
         rgb = lookupColor(normPixelDist);
 
         float maxAlpha = .6f + .4f * (1.f-p.z);
@@ -364,67 +388,107 @@ shadePixel(int circleIndex, float2 pixelCenter, float3 p, float4* imagePtr) {
     // BEGIN SHOULD-BE-ATOMIC REGION
     // global memory read
 
-    float4 existingColor = *imagePtr;
+    float4 existingColor = *circleImagePtr;
     float4 newColor;
     newColor.x = alpha * rgb.x + oneMinusAlpha * existingColor.x;
     newColor.y = alpha * rgb.y + oneMinusAlpha * existingColor.y;
     newColor.z = alpha * rgb.z + oneMinusAlpha * existingColor.z;
-    newColor.w = alpha + existingColor.w;
+    newColor.w = oneMinusAlpha*existingColor.w;
 
     // global memory write
-    *imagePtr = newColor;
+    *circleImagePtr = newColor;
 
     // END SHOULD-BE-ATOMIC REGION
 }
 
+
 // kernelRenderCircles -- (CUDA device code)
 //
-// Each thread renders a circle.  Since there is no protection to
+// Each thread renders a pixel for a circle at a given depth.  Since there is no protection to
 // ensure order of update or mutual exclusion on the output image, the
 // resulting image will be incorrect.
 __global__ void kernelRenderCircles() {
 
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int pixelX = blockIdx.x * blockDim.x + threadIdx.x;
+    int pixelY = blockIdx.y * blockDim.y + threadIdx.y;
 
-    if (index >= cuConstRendererParams.numCircles)
-        return;
-
-    int index3 = 3 * index;
-
-    // read position and radius
-    float3 p = *(float3*)(&cuConstRendererParams.position[index3]);
-    float  rad = cuConstRendererParams.radius[index];
-
-    // compute the bounding box of the circle. The bound is in integer
-    // screen coordinates, so it's clamped to the edges of the screen.
     short imageWidth = cuConstRendererParams.imageWidth;
     short imageHeight = cuConstRendererParams.imageHeight;
-    short minX = static_cast<short>(imageWidth * (p.x - rad));
-    short maxX = static_cast<short>(imageWidth * (p.x + rad)) + 1;
-    short minY = static_cast<short>(imageHeight * (p.y - rad));
-    short maxY = static_cast<short>(imageHeight * (p.y + rad)) + 1;
 
-    // a bunch of clamps.  Is there a CUDA built-in for this?
-    short screenMinX = (minX > 0) ? ((minX < imageWidth) ? minX : imageWidth) : 0;
-    short screenMaxX = (maxX > 0) ? ((maxX < imageWidth) ? maxX : imageWidth) : 0;
-    short screenMinY = (minY > 0) ? ((minY < imageHeight) ? minY : imageHeight) : 0;
-    short screenMaxY = (maxY > 0) ? ((maxY < imageHeight) ? maxY : imageHeight) : 0;
+    if ((pixelX >= imageWidth)||(pixelY >= imageHeight))
+        return;
 
     float invWidth = 1.f / imageWidth;
     float invHeight = 1.f / imageHeight;
+    // float4* imgPtr = (float4*)(&cuConstRendererParams.imageData[4 * (pixelY * imageWidth + pixelX)]);
+    float2 pixelCenter = make_float2(invWidth*(static_cast<float>(pixelX) + 0.5f),
+                                                 invHeight*(static_cast<float>(pixelY) + 0.5f));
 
-    // for all pixels in the bonding box
-    for (int pixelY=screenMinY; pixelY<screenMaxY; pixelY++) {
-        float4* imgPtr = (float4*)(&cuConstRendererParams.imageData[4 * (pixelY * imageWidth + screenMinX)]);
-        for (int pixelX=screenMinX; pixelX<screenMaxX; pixelX++) {
-            float2 pixelCenterNorm = make_float2(invWidth * (static_cast<float>(pixelX) + 0.5f),
-                                                 invHeight * (static_cast<float>(pixelY) + 0.5f));
-            shadePixel(index, pixelCenterNorm, p, imgPtr);
-            imgPtr++;
-        }
-    }
+
+   // printf("%d %d %f %f %f \n",pixelX,pixelY, (*imgPtr).x,(*imgPtr).y,(*imgPtr).z);
+
+    int index0 = blockIdx.z * blockDim.z + threadIdx.z;         /// thread ID for parallel circles thread
+    int cicle_start_id = index0*noOfCirclePerThread;
+
+    if (cicle_start_id >= cuConstRendererParams.numCircles)
+        return;
+
+    int limit = ((cicle_start_id + noOfCirclePerThread) < cuConstRendererParams.numCircles) ? (cicle_start_id + noOfCirclePerThread) : cuConstRendererParams.numCircles;
+
+    float4* circle_imgPtr = (float4*)(&cuConstRendererParams.circleimageData[4*index0*imageHeight*imageWidth + 4*(pixelY * imageWidth + pixelX)]);
+    for(int i= cicle_start_id;i< limit;i++){     
+        int index3 = 3*i;
+        float3 p = *(float3*)(&cuConstRendererParams.position[index3]);
+        float  rad = cuConstRendererParams.radius[i];
+
+        float diffX = p.x - pixelCenter.x;
+        float diffY = p.y - pixelCenter.y;
+        float pixelDist = diffX * diffX + diffY * diffY;
+        float maxDist = rad * rad;
+
+        // circle does not contribute to the image
+        if (pixelDist > maxDist)
+            continue;
+
+        float normPixelDist = sqrt(pixelDist) / rad;
+        shadePixel(i, pixelCenter, p,normPixelDist,circle_imgPtr );
+    }      
+
 }
 
+
+// This function combines all the output from different thread wrt to circles
+__global__ void kernelShadeCircles(){
+    int imageX = blockIdx.x * blockDim.x + threadIdx.x;
+    int imageY = blockIdx.y * blockDim.y + threadIdx.y;
+
+    int width = cuConstRendererParams.imageWidth;
+    int height = cuConstRendererParams.imageHeight;
+
+    if (imageX >= width || imageY >= height)
+        return;
+
+    int loc = 4 * (imageY * width + imageX);
+
+    float4* imagePtr = (float4*)(&cuConstRendererParams.imageData[loc]);
+    *imagePtr = *(float4*)(&cuConstRendererParams.circleimageData[loc]);
+    for (int i = 1; i< noOfCircleThreads; i++){
+        float4* circle_imgPtr = (float4*)(&cuConstRendererParams.circleimageData[4*i*height*width + loc]);
+
+        float4 rgb = *circle_imgPtr;
+        float alpha = rgb.w;
+
+        // float4 existingColor = (i == 1) ? *circle_imgPtr : *imagePtr;
+        float4 existingColor = *imagePtr;
+        float4 newColor;
+        newColor.x = rgb.x + alpha * existingColor.x;
+        newColor.y = rgb.y + alpha * existingColor.y;
+        newColor.z = rgb.z + alpha * existingColor.z;
+        newColor.w = alpha*existingColor.w;
+        // global memory write
+        *imagePtr = newColor;
+    }
+}
 ////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -441,7 +505,8 @@ CudaRenderer::CudaRenderer() {
     cudaDeviceVelocity = NULL;
     cudaDeviceColor = NULL;
     cudaDeviceRadius = NULL;
-    cudaDeviceImageData = NULL;
+    cudaDeviceImageData = NULL;\
+    cudaDeviceCircleImageData = NULL;
 }
 
 CudaRenderer::~CudaRenderer() {
@@ -463,6 +528,7 @@ CudaRenderer::~CudaRenderer() {
         cudaFree(cudaDeviceColor);
         cudaFree(cudaDeviceRadius);
         cudaFree(cudaDeviceImageData);
+        cudaFree(cudaDeviceCircleImageData);
     }
 }
 
@@ -517,12 +583,17 @@ CudaRenderer::setup() {
     //
     // See the CUDA Programmer's Guide for descriptions of
     // cudaMalloc and cudaMemcpy
+    if((numCircles % noOfCirclePerThread) == 0)
+        noOfCircleThreads_temp = numCircles/noOfCirclePerThread;
+    else
+        noOfCircleThreads_temp = (numCircles/noOfCirclePerThread) + 1;
 
     cudaMalloc(&cudaDevicePosition, sizeof(float) * 3 * numCircles);
     cudaMalloc(&cudaDeviceVelocity, sizeof(float) * 3 * numCircles);
     cudaMalloc(&cudaDeviceColor, sizeof(float) * 3 * numCircles);
     cudaMalloc(&cudaDeviceRadius, sizeof(float) * numCircles);
     cudaMalloc(&cudaDeviceImageData, sizeof(float) * 4 * image->width * image->height);
+    cudaMalloc(&cudaDeviceCircleImageData,sizeof(float) * 4 * image->width * image->height * noOfCircleThreads_temp);
 
     cudaMemcpy(cudaDevicePosition, position, sizeof(float) * 3 * numCircles, cudaMemcpyHostToDevice);
     cudaMemcpy(cudaDeviceVelocity, velocity, sizeof(float) * 3 * numCircles, cudaMemcpyHostToDevice);
@@ -547,6 +618,7 @@ CudaRenderer::setup() {
     params.color = cudaDeviceColor;
     params.radius = cudaDeviceRadius;
     params.imageData = cudaDeviceImageData;
+    params.circleimageData = cudaDeviceCircleImageData;
 
     cudaMemcpyToSymbol(cuConstRendererParams, &params, sizeof(GlobalConstants));
 
@@ -559,6 +631,7 @@ CudaRenderer::setup() {
     cudaMemcpyToSymbol(cuConstNoiseXPermutationTable, permX, sizeof(int) * 256);
     cudaMemcpyToSymbol(cuConstNoiseYPermutationTable, permY, sizeof(int) * 256);
     cudaMemcpyToSymbol(cuConstNoise1DValueTable, value1D, sizeof(float) * 256);
+    cudaMemcpyToSymbol(noOfCircleThreads, &noOfCircleThreads_temp, sizeof(int));
 
     // last, copy over the color table that's used by the shading
     // function for circles in the snowflake demo
@@ -634,10 +707,44 @@ CudaRenderer::advanceAnimation() {
 void
 CudaRenderer::render() {
 
+
+    dim3 blockDim1(16, 16);
+    dim3 gridDim1(
+        (image->width + blockDim1.x - 1) / blockDim1.x,
+        (image->height + blockDim1.y - 1) / blockDim1.y);
+
+  
     // 256 threads per block is a healthy number
-    dim3 blockDim(256, 1);
-    dim3 gridDim((numCircles + blockDim.x - 1) / blockDim.x);
+    int width = image->width;
+    int height = image->height;
+
+    // printf("Circle thread no%d\n",noOfCircleThreads_temp );
+
+    dim3 blockDim(16, 16, 1);
+    dim3 gridDim((width + blockDim.x - 1) / blockDim.x,
+                (height+ blockDim.y - 1) / blockDim.y,
+                (noOfCircleThreads_temp + blockDim.z - 1) / blockDim.z);
+
+    // double startClearTime = CycleTimer::currentSeconds();
+
+    kernelClearCircleImage<<<gridDim, blockDim>>>(0.f, 0.f, 0.f, 1.f);
+    cudaDeviceSynchronize();
+    // double endClearTime = CycleTimer::currentSeconds();
+
 
     kernelRenderCircles<<<gridDim, blockDim>>>();
     cudaDeviceSynchronize();
+    // double endrenderTime = CycleTimer::currentSeconds();
+
+
+
+    kernelShadeCircles<<<gridDim1, blockDim1>>>();
+    cudaDeviceSynchronize();
+    // double endshadeTime = CycleTimer::currentSeconds();
+
+    // printf("Clear:    %.4f ms\n", 1000.f * (endClearTime - startClearTime));
+    // printf("render:    %.4f ms\n", 1000.f * (endrenderTime - endClearTime));
+    // printf("shade:    %.4f ms\n", 1000.f * (endshadeTime - endrenderTime));
+
+
 }
