@@ -869,13 +869,10 @@ void exclusiveScanWarpOnly(int &circleIndex, int lane) {
 __global__ void kernelRenderCirclesScan() {
     float3 p;
     float rad;
-    float3 p_o;
-    float rad_o;
     float4 existing;
     float4 original;
     __shared__ int active_circles[CIRCLE_PER_TB];
     __shared__ int total_circles;
-    int total_warp_circles;
 
     int tid = blockIdx.x * blockDim.x + threadIdx.x;  // thread ID
     int wid = tid >> TPW_LOG;  // warp ID
@@ -940,7 +937,6 @@ __global__ void kernelRenderCirclesScan() {
 
     // well we actually want to move across the image within each warp rather than per thread... more locality
     short warpMinX = TBMinX + ((wid_per_tb * SIDE_WARP_X) & (SIDE_TB_X - 1));
-    short warpMaxX = warpMinX + SIDE_WARP_X;
 
     short warpMinY = TBMinY + (((wid_per_tb >> SIDE_WARP_X_PER_TB_LOG) * SIDE_WARP_Y) & (SIDE_TB_Y - 1));
     short warpMaxY = warpMinY + SIDE_WARP_Y;
