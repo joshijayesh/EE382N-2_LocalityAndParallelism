@@ -471,8 +471,6 @@ shadePixelSmall(int circleIndex, float2 pixelCenter, float3 p, float rad, float4
 }
 
 
-
-
 #include "circleBoxTest.cu_inl"
 // #define DEBUG_PRINT_WU
 
@@ -485,61 +483,25 @@ __device__ __inline__
 void exclusiveScanUpsweepWarp(int &warpItem, int &tempItem, int &lane, int &wid) {
     tempItem = warpItem;
 
-    #ifdef DEBUG_PRINT_WU
-    if(blockIdx.x == 1 && wid == 1) {
-        printf("lane = %d warpItem = %d tempItem = %d\n", lane, warpItem, tempItem);
-    }
-    #endif
-
     // offset = 1
     warpItem += __shfl_down_sync(THREADS_PER_WARP, warpItem, 1);
     tempItem = __shfl_up_sync(WARPS_PER_TB_MASK, warpItem, 1);
-
-    #ifdef DEBUG_PRINT_WU
-    if(blockIdx.x == 1 && wid == 1) {
-        printf("lane = %d warpItem = %d tempItem = %d\n", lane, warpItem, tempItem);
-    }
-    #endif
 
     // offset = 2
     warpItem += __shfl_down_sync(THREADS_PER_WARP, warpItem, 2);
     tempItem = lane % 2 != 0 ? tempItem : __shfl_up_sync(TPW_MASK4, warpItem, 2);
 
-    #ifdef DEBUG_PRINT_WU
-    if(blockIdx.x == 1 && wid == 1) {
-        printf("lane = %d warpItem = %d tempItem = %d\n", lane, warpItem, tempItem);
-    }
-    #endif
-
     // offset = 4
     warpItem += __shfl_down_sync(THREADS_PER_WARP, warpItem, 4);
     tempItem = lane % 4 != 0 ? tempItem : __shfl_up_sync(TPW_MASK3, warpItem, 4);
-
-    #ifdef DEBUG_PRINT_WU
-    if(blockIdx.x == 1 && wid == 1) {
-        printf("lane = %d warpItem = %d tempItem = %d\n", lane, warpItem, tempItem);
-    }
-    #endif
     
     // offset = 8
     warpItem += __shfl_down_sync(THREADS_PER_WARP, warpItem, 8);
     tempItem = lane % 8 != 0 ? tempItem : __shfl_up_sync(TPW_MASK2, warpItem, 8);
-
-    #ifdef DEBUG_PRINT_WU
-    if(blockIdx.x == 1 && wid == 1) {
-        printf("lane = %d warpItem = %d tempItem = %d\n", lane, warpItem, tempItem);
-    }
-    #endif
     
     // offset = 16
     warpItem += __shfl_down_sync(THREADS_PER_WARP, warpItem, 16);
     tempItem = lane % 16 != 0 ? tempItem : __shfl_up_sync(TPW_MASK1, warpItem, 16);
-
-    #ifdef DEBUG_PRINT_WU
-    if(blockIdx.x == 1 && wid == 1) {
-        printf("lane = %d warpItem = %d tempItem = %d\n", lane, warpItem, tempItem);
-    }
-    #endif
 }
 
 __device__ __inline__
@@ -605,65 +567,29 @@ __device__ __inline__
 void exclusiveScanDownsweepWarp(int &warpItem, int &heldItem, int &tempItem, int &lane, int &wid) {
     int update;
 
-    #ifdef DEBUG_PRINT_WU
-    if(blockIdx.x == 1 && wid == 1) {
-        printf("WD lane = %d warpItem = %d tempItem = %d\n", lane, warpItem, tempItem);
-    }
-    #endif
-
     // offset = 16
     tempItem = lane % 8 != 0 ? tempItem : __shfl_down_sync(TPW_MASK2, tempItem, 8) + warpItem;
     update = __shfl_up_sync(THREADS_PER_WARP, tempItem, 16);
     if(lane % 32 != 0) warpItem = update;  // wtf why does up_sync update me?!
-
-    #ifdef DEBUG_PRINT_WU
-    if(blockIdx.x == 1 && wid == 1) {
-        printf("WD lane = %d warpItem = %d tempItem = %d\n", lane, warpItem, tempItem);
-    }
-    #endif
 
     // offset = 8
     tempItem = lane % 4 != 0 ? tempItem : __shfl_down_sync(TPW_MASK3, tempItem, 4) + warpItem;
     update = __shfl_up_sync(THREADS_PER_WARP, tempItem, 8);
     if(lane % 16 != 0) warpItem = update;  // wtf why does up_sync update me?!
 
-    #ifdef DEBUG_PRINT_WU
-    if(blockIdx.x == 1 && wid == 1) {
-        printf("WD lane = %d warpItem = %d tempItem = %d\n", lane, warpItem, tempItem);
-    }
-    #endif
-
     // offset = 4
     tempItem = lane % 2 == 1 ? tempItem : __shfl_down_sync(TPW_MASK4, tempItem, 2) + warpItem;
     update = __shfl_up_sync(THREADS_PER_WARP, tempItem, 4);
     if(lane % 8 != 0) warpItem = update;  // wtf why does up_sync update me?!
-
-    #ifdef DEBUG_PRINT_WU
-    if(blockIdx.x == 1 && wid == 1) {
-        printf("WD lane = %d warpItem = %d tempItem = %d\n", lane, warpItem, tempItem);
-    }
-    #endif
 
     // offset = 2
     tempItem = __shfl_down_sync(THREADS_PER_WARP, tempItem, 1) + warpItem;
     update = __shfl_up_sync(THREADS_PER_WARP, tempItem, 2);
     if(lane % 4 != 0) warpItem = update;  // wtf why does up_sync update me?!
 
-    #ifdef DEBUG_PRINT_WU
-    if(blockIdx.x == 1 && wid == 1) {
-        printf("WD lane = %d warpItem = %d tempItem = %d\n", lane, warpItem, tempItem);
-    }
-    #endif
-
     // offset = 1
     update = __shfl_up_sync(THREADS_PER_WARP, heldItem + warpItem, 1);
     if(lane % 2 != 0) warpItem = update;  // wtf why does up_sync update me?!
-
-    #ifdef DEBUG_PRINT_WU
-    if(blockIdx.x == 1 && wid == 1) {
-        printf("WD lane = %d warpItem = %d tempItem = %d\n", lane, warpItem, tempItem);
-    }
-    #endif
 }
 
 __device__ __inline__
@@ -685,11 +611,7 @@ void exclusiveScan(int &circleIndex, int wid, int lane) {
     if(wid == 0 && lane < WARPS_PER_TB) { 
         circleIndex2 = scratch[lane];
         heldIndex2 = circleIndex2;
-        #ifdef DEBUG_PRINT_WU
-        if(blockIdx.x == 1) {
-            printf("Lane = %d val = %d\n", lane, circleIndex2);
-        }
-        #endif
+
         exclusiveScanUpsweepTB(circleIndex2, tempIndex2, lane);
 
         if(lane == 0) circleIndex2 = 0;
@@ -697,11 +619,6 @@ void exclusiveScan(int &circleIndex, int wid, int lane) {
         exclusiveScanDownsweepTB(circleIndex2, heldIndex2, tempIndex2, lane);
 
         scratch[lane] = circleIndex2;
-        #ifdef DEBUG_PRINT_WU
-        if(blockIdx.x == 1) {
-            printf("Lane = %d val = %d\n", lane, circleIndex2);
-        }
-        #endif
     }
 
     __syncthreads();
@@ -711,11 +628,6 @@ void exclusiveScan(int &circleIndex, int wid, int lane) {
         circleIndex = scratch[wid];
 
     exclusiveScanDownsweepWarp(circleIndex, heldIndex1, tempIndex1, lane, wid);
-
-    #ifdef DEBUG_PRINT_WU
-    if(blockIdx.x == 1 && wid == 1) 
-        printf("Finale Lane = %d val = %d\n", lane, circleIndex);
-    #endif
 }
 
 __device__ __inline__
@@ -785,9 +697,8 @@ void exclusiveScanWarpOnly(int &circleIndex, int lane) {
 
 // kernelRenderCirclesScan -- (CUDA device code)
 //
-// So.. The Large() didn't work out, the performance was god awful!
-// This time... lets find out first how many circles are within the pixels that we are responsible for
-// So we can make an executive decision earlier of how many circles to care about
+// Scan reduction method which reduces the number of circles that each thread block needs to consider by using
+// eclusive scan and walking through the remaining circles sequentially
 __global__ void kernelRenderCirclesScan() {
     float3 p;
     float rad;
@@ -818,14 +729,8 @@ __global__ void kernelRenderCirclesScan() {
 
     float TBMinXNorm = invWidth * TBMinX;
     float TBMaxXNorm = invWidth * TBMaxX;
-    float TBMinYNorm = invWidth * TBMinY;
-    float TBMaxYNorm = invWidth * TBMaxY;
-
-    /*
-    if(threadIdx.x == 0) {
-        printf("TB %d [%d %d] [%d %d]\n", blockIdx.x, TBMinX, TBMaxX, TBMinY, TBMaxY);
-    }
-    */
+    float TBMinYNorm = invHeight * TBMinY;
+    float TBMaxYNorm = invHeight * TBMaxY;
 
     // Find all the circles that are within my TB
     int m_circles_[CIRCLE_PER_THREAD];
@@ -870,40 +775,8 @@ __global__ void kernelRenderCirclesScan() {
     short warpMinX = TBMinX + ((wid_per_tb * SIDE_WARP_X) & (SIDE_TB_X - 1));
     short warpMaxX = warpMinX + SIDE_WARP_X;
 
-    short warpMinY = TBMinY + (((wid_per_tb >> SIDE_WARP_X_PER_TB_LOG) * SIDE_WARP_Y) & (SIDE_TB_X - 1));
+    short warpMinY = TBMinY + (((wid_per_tb >> SIDE_WARP_X_PER_TB_LOG) * SIDE_WARP_Y) & (SIDE_TB_Y - 1));
     short warpMaxY = warpMinY + SIDE_WARP_Y;
-
-    /*
-    float warpMinXNorm = invWidth * warpMinX;
-    float warpMaxXNorm = invWidth * warpMaxX;
-    float warpMinYNorm = invWidth * warpMinY;
-    float warpMaxYNorm = invWidth * warpMaxY;
-
-    // Find all the circles that are within my warp :)
-    int m_circles2_[CIRCLE_PER_THREAD * 4];
-    circle_cnt_ = 0;
-    circle_idx_ = 0;
-    circles_per_thread = (total_circles + THREADS_PER_WARP - 1) / THREADS_PER_WARP;  
-    circles_start = circles_per_thread * lane;
-    circles_end = (circles_start + circles_per_thread - 1);
-    circles_end = circles_end >= total_circles ? total_circles - 1 : circles_end;
-
-    for(int circle_index = circles_start; circle_index <= circles_end; circle_index += 1) {
-        int active_circle_index = active_circles[circle_index];
-        int circle_index_3 = active_circle_index * 3;
-        p = *(float3*)(&cuConstRendererParams.position[circle_index_3]);
-        rad = cuConstRendererParams.radius[active_circle_index];
-        
-        // conservative finds more circles... but is WAY less computation intensitive
-        if(circleInBox(p.x, p.y, rad, warpMinXNorm, warpMaxXNorm, warpMaxYNorm, warpMinYNorm))
-            m_circles2_[circle_cnt_++] = active_circle_index;
-    }
-
-    // circle_idx_ will contain the index to start from, circle_cnt_ contains how many circles to write
-    circle_idx_ = circle_cnt_;
-    __syncwarp();
-    exclusiveScanWarpOnly(circle_idx_, lane);
-    */
 
     int circleIndex, circleIndex3;
 
@@ -937,11 +810,10 @@ __global__ void kernelRenderCirclesScan() {
     }
 }
 
-// kernelRenderCirclesScan -- (CUDA device code)
+// kernelRenderParallelCirclesScan -- (CUDA device code)
 //
-// So.. The Large() didn't work out, the performance was god awful!
-// This time... lets find out first how many circles are within the pixels that we are responsible for
-// So we can make an executive decision earlier of how many circles to care about
+// Updated version of kernelRenderCirclesScan that parallelizes the number of circles that each thread needs to consider
+// by number of circles per thread which is then combined via kernelShadeCircles
 __global__ void kernelRenderParallelCirclesScan() {
     float3 p;
     float rad;
@@ -980,14 +852,8 @@ __global__ void kernelRenderParallelCirclesScan() {
 
     float TBMinXNorm = invWidth * TBMinX;
     float TBMaxXNorm = invWidth * TBMaxX;
-    float TBMinYNorm = invWidth * TBMinY;
-    float TBMaxYNorm = invWidth * TBMaxY;
-
-    /*
-    if(threadIdx.x == 0) {
-        printf("TB %d [%d %d] [%d %d]\n", blockIdx.x, TBMinX, TBMaxX, TBMinY, TBMaxY);
-    }
-    */
+    float TBMinYNorm = invHeight * TBMinY;
+    float TBMaxYNorm = invHeight * TBMaxY;
 
     // Find all the circles that are within my TB
     int m_circles_[CIRCLE_PER_THREAD];
@@ -1035,38 +901,6 @@ __global__ void kernelRenderParallelCirclesScan() {
     short warpMinY = TBMinY + (((wid_per_tb >> SIDE_WARP_X_PER_TB_LOG) * SIDE_WARP_Y) & (SIDE_TB_X - 1));
     short warpMaxY = warpMinY + SIDE_WARP_Y;
 
-    /*
-    float warpMinXNorm = invWidth * warpMinX;
-    float warpMaxXNorm = invWidth * warpMaxX;
-    float warpMinYNorm = invWidth * warpMinY;
-    float warpMaxYNorm = invWidth * warpMaxY;
-
-    // Find all the circles that are within my warp :)
-    int m_circles2_[CIRCLE_PER_THREAD * 4];
-    circle_cnt_ = 0;
-    circle_idx_ = 0;
-    circles_per_thread = (total_circles + THREADS_PER_WARP - 1) / THREADS_PER_WARP;  
-    circles_start = circles_per_thread * lane;
-    circles_end = (circles_start + circles_per_thread - 1);
-    circles_end = circles_end >= total_circles ? total_circles - 1 : circles_end;
-
-    for(int circle_index = circles_start; circle_index <= circles_end; circle_index += 1) {
-        int active_circle_index = active_circles[circle_index];
-        int circle_index_3 = active_circle_index * 3;
-        p = *(float3*)(&cuConstRendererParams.position[circle_index_3]);
-        rad = cuConstRendererParams.radius[active_circle_index];
-        
-        // conservative finds more circles... but is WAY less computation intensitive
-        if(circleInBox(p.x, p.y, rad, warpMinXNorm, warpMaxXNorm, warpMaxYNorm, warpMinYNorm))
-            m_circles2_[circle_cnt_++] = active_circle_index;
-    }
-
-    // circle_idx_ will contain the index to start from, circle_cnt_ contains how many circles to write
-    circle_idx_ = circle_cnt_;
-    __syncwarp();
-    exclusiveScanWarpOnly(circle_idx_, lane);
-    */
-
     int circleIndex, circleIndex3;
 
     // for all pixels in our current targets
@@ -1081,7 +915,6 @@ __global__ void kernelRenderParallelCirclesScan() {
         // note we can take off 1 section of for loop since we have SIDE_WARP_X = 32...
         float2 pixelCenterNorm = make_float2(invWidth * (static_cast<float>(warpMinX + lane) + 0.5f),
                                              invHeight * (static_cast<float>(pixelY) + 0.5f));
-
 
         float4* circle_imgPtr = (float4*)(&cuConstRendererParams.circleimageData[4*index0*imageHeight*imageWidth + 4*(pixelY * imageWidth + warpMinX + lane)]);
         original = *circle_imgPtr;
@@ -1120,7 +953,7 @@ __global__ void kernelShadeCircles(){
     int loc = 4 * (imageY * width + imageX);
 
     float4* imagePtr = (float4*)(&cuConstRendererParams.imageData[loc]);
-    *imagePtr = *(float4*)(&cuConstRendererParams.circleimageData[loc]);
+    float4 existingColor = *(float4*)(&cuConstRendererParams.circleimageData[loc]);
     for (int i = 1; i< noOfCircleThreads; i++){
         float4* circle_imgPtr = (float4*)(&cuConstRendererParams.circleimageData[4*i*height*width + loc]);
 
@@ -1128,15 +961,13 @@ __global__ void kernelShadeCircles(){
         float alpha = rgb.w;
 
         // float4 existingColor = (i == 1) ? *circle_imgPtr : *imagePtr;
-        float4 existingColor = *imagePtr;
-        float4 newColor;
-        newColor.x = rgb.x + alpha * existingColor.x;
-        newColor.y = rgb.y + alpha * existingColor.y;
-        newColor.z = rgb.z + alpha * existingColor.z;
-        newColor.w = alpha*existingColor.w;
-        // global memory write
-        *imagePtr = newColor;
+        existingColor.x = rgb.x + alpha * existingColor.x;
+        existingColor.y = rgb.y + alpha * existingColor.y;
+        existingColor.z = rgb.z + alpha * existingColor.z;
+        existingColor.w = alpha*existingColor.w;
     }
+
+    *imagePtr = existing;
 }
 ////////////////////////////////////////////////////////////////////////////////////////
 
