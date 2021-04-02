@@ -967,7 +967,7 @@ __global__ void kernelShadeCircles(){
         existingColor.w = alpha*existingColor.w;
     }
 
-    *imagePtr = existing;
+    *imagePtr = existingColor;
 }
 ////////////////////////////////////////////////////////////////////////////////////////
 
@@ -987,7 +987,6 @@ CudaRenderer::CudaRenderer() {
     cudaDeviceRadius = NULL;
     cudaDeviceImageData = NULL;
     cudaDeviceCircleImageData = NULL;
-
 }
 
 CudaRenderer::~CudaRenderer() {
