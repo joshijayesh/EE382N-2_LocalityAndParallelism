@@ -65,6 +65,24 @@
 #define SIDE_TB_X 32 // TB does SIDE_WARP_X * (WARPS_PER_TB) x SIDE_WARP_Y
 #define SIDE_TB_Y 32
 
+/* 1x1 config  -- better performance in large # of circles, but worse in snowsingle*/
+/*
+#define SIDE_PER_THREAD 1
+#define SIDE_WARP_X 32
+#define SIDE_WARP_Y 1
+#define BLOCK_PER_THREAD 1
+// log(1024 / 32) = log(32) = 5
+#define SIDE_WARP_X_PER_IMG_LOG 5
+// log(32/32) = log(1) = 0
+#define SIDE_WARP_X_PER_TB_LOG 0
+// log(1024/32) = log(32) = 5
+#define SIDE_TB_X_PER_IMG_LOG 5
+// log(64/4) = log(16) = 4
+
+#define SIDE_TB_X 32 // TB does SIDE_WARP_X * (WARPS_PER_TB) x SIDE_WARP_Y
+#define SIDE_TB_Y 8
+*/
+
 
 #define CIRCLE_PER_THREAD 32 // This needs to be massaged , 32 seems to be the min pow of 2 we can use
 #define CIRCLE_PER_TB 4096 // This needs to be massaged
@@ -702,13 +720,10 @@ void exclusiveScanWarpOnly(int &circleIndex, int lane) {
 __global__ void kernelRenderCirclesScan() {
     float3 p;
     float rad;
-    float3 p_o;
-    float rad_o;
     float4 existing;
     float4 original;
     __shared__ int active_circles[CIRCLE_PER_TB];
     __shared__ int total_circles;
-    int total_warp_circles;
 
     int tid = blockIdx.x * blockDim.x + threadIdx.x;  // thread ID
     int wid = tid >> TPW_LOG;  // warp ID
@@ -773,7 +788,6 @@ __global__ void kernelRenderCirclesScan() {
 
     // well we actually want to move across the image within each warp rather than per thread... more locality
     short warpMinX = TBMinX + ((wid_per_tb * SIDE_WARP_X) & (SIDE_TB_X - 1));
-    short warpMaxX = warpMinX + SIDE_WARP_X;
 
     short warpMinY = TBMinY + (((wid_per_tb >> SIDE_WARP_X_PER_TB_LOG) * SIDE_WARP_Y) & (SIDE_TB_Y - 1));
     short warpMaxY = warpMinY + SIDE_WARP_Y;
@@ -817,8 +831,6 @@ __global__ void kernelRenderCirclesScan() {
 __global__ void kernelRenderParallelCirclesScan() {
     float3 p;
     float rad;
-    float3 p_o;
-    float rad_o;
     float4 existing;
     float4 original;
     int index0 = blockIdx.y * blockDim.y + threadIdx.y;         /// thread ID for parallel circles thread
@@ -830,7 +842,6 @@ __global__ void kernelRenderParallelCirclesScan() {
 
     __shared__ int active_circles[CIRCLE_PER_TB];
     __shared__ int total_circles;
-    int total_warp_circles;
 
     int tid = blockIdx.x * blockDim.x + threadIdx.x;  // thread ID
     int wid = tid >> TPW_LOG;  // warp ID
@@ -896,7 +907,6 @@ __global__ void kernelRenderParallelCirclesScan() {
 
     // well we actually want to move across the image within each warp rather than per thread... more locality
     short warpMinX = TBMinX + ((wid_per_tb * SIDE_WARP_X) & (SIDE_TB_X - 1));
-    short warpMaxX = warpMinX + SIDE_WARP_X;
 
     short warpMinY = TBMinY + (((wid_per_tb >> SIDE_WARP_X_PER_TB_LOG) * SIDE_WARP_Y) & (SIDE_TB_X - 1));
     short warpMaxY = warpMinY + SIDE_WARP_Y;
@@ -1219,8 +1229,7 @@ CudaRenderer::render() {
         (image->height + blockDim1.y - 1) / blockDim1.y);
         kernelShadeCircles<<<gridDim1, blockDim1>>>();
         cudaDeviceSynchronize();
-    } 
-    else{
+    } else{
         dim3 blockDim(256, 1);
         int numThreads = (image->width * image->height) / BLOCK_PER_THREAD;
         dim3 gridDim(((numThreads) + blockDim.x - 1) / blockDim.x);
@@ -1228,17 +1237,4 @@ CudaRenderer::render() {
         kernelRenderCirclesScan<<<gridDim, blockDim>>>();
         cudaDeviceSynchronize();
     }
-
-    // else {
-    //     // 256 threads per block is a healthy number
-    //     dim3 blockDim(256, 1);
-
-    //     // num threads needed = (imageWidth / 16) * (imageHeight / 16) = (imageWidth * imageHeight / 256)
-    //     // int numThreads = (image->width * image->height) / 256;
-    //     int numThreads = (image->width * image->height) / BLOCK_PER_THREAD;
-    //     dim3 gridDim(((numThreads) + blockDim.x - 1) / blockDim.x);
-
-    //     kernelRenderCirclesSmall<<<gridDim, blockDim>>>();
-    //     cudaDeviceSynchronize();
-    // }
 }
