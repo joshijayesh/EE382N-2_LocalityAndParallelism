@@ -74,12 +74,15 @@ do
   var ts_stop = c.legion_get_current_time_in_micros()
   c.printf("Graph initialization took %.4f sec\n", (ts_stop - ts_start) * 1e-6)
 end
-
+--
+-- TODO: Implement PageRank. You can use as many tasks as you want.
+--
 task Delta_update(r_pages   : region(Page),
+                  --p : partition(disjoint,r_pages,ispace(int1d)),
                    damp : double,
                    num_pages : uint64)
 where
-  reads(r_pages.rank, r_pages.delta, r_pages.outgoing_links),
+  reads (r_pages.rank, r_pages.outgoing_links),
   writes(r_pages.delta, r_pages.old_rank, r_pages.rank)
 do
 for page in r_pages do
@@ -90,19 +93,32 @@ end
 end
 
 task PageRank_update(r_pages   : region(Page),
+                      --
+                      -- TODO: Give the right region type here.
+                      --
                       r_links   : region(Link(r_pages)),
-                      damp      : double)
+                      --l : partition(disjoint,r_links,ispace(int1d),
+                      damp      : double,
+                      num_pages : uint64)
 where
-  reads(r_links, r_pages.rank, r_pages.delta),
-  writes(r_pages.rank)
+  reads(r_links, r_pages.rank, r_pages.delta, r_pages.outgoing_links),
+  writes(r_pages.delta, r_pages.old_rank, r_pages.rank)
 do
-  for link in r_links do
-    link.dest_page.rank += damp*link.source_page.delta
+
+  for page in r_pages do
+      page.delta = page.rank/page.outgoing_links
+      page.old_rank = page.rank
+      page.rank = (1.0-damp)/num_pages
   end
+
+  for link in r_links do
+          --link.dest_page.residue += link.source_page.delta
+            link.dest_page.rank += damp*link.source_page.delta
+  end
+
 end
 
 task dump_ranks(r_pages  : region(Page),
-
                 filename : int8[512])
 where
   reads(r_pages.rank)
@@ -112,16 +128,23 @@ do
   c.fclose(f)
 end
 
-task norm_partition(r_pages : region(Page))
+task norm_partition(r_pages : region(Page))--,
+                 --epsilon : double)
 where
   reads(r_pages.rank, r_pages.old_rank)
 do
-  var l2_norm = 0.0
-  for page in r_pages do
-    var change = (page.rank-page.old_rank)
-    l2_norm += change*change
-  end
-  return l2_norm
+var l2_norm = 0.0
+for page in r_pages do
+var change = (page.rank-page.old_rank)
+l2_norm += change*change
+end
+return l2_norm
+--if l2_norm <= epsilon*epsilon then
+  --return true
+--else
+  --return false
+--end
+
 end
 
 task toplevel()
@@ -140,8 +163,17 @@ task toplevel()
 
   -- Create a region of pages
   var r_pages = region(ispace(ptr, config.num_pages), Page)
+  --
+  -- TODO: Create a region of links.
+  --       It is your choice how you allocate the elements in this region.
+  --
   var r_links = region(ispace(ptr, config.num_links), Link(wild))
 
+  --
+  -- TODO: Create partitions for links and pages.
+  --       You can use as many partitions as you want.
+  --
+  
   -- Initialize the page graph from a file
   initialize_graph(r_pages,r_links, config.damp, config.num_pages, config.input)
   
@@ -157,28 +189,35 @@ task toplevel()
     num_iterations += 1
     
     --for c in page_partition.colors
+    --[[
     for c in page_partition.colors do
-      Delta_update(page_partition[c], config.damp, config.num_pages)
-    end
+         Delta_update(page_partition[c],config.damp, config.num_pages)
+    end--]]
   
     for c in link_partition.colors do
-      PageRank_update(page_partition[c],link_partition[c],config.damp) --, config.num_pages)
+         PageRank_update(page_partition[c],link_partition[c],config.damp, config.num_pages)
     end
 
-    for c in page_partition.colors do
-      r_norm[c].value = norm_partition(page_partition[c])--,config.error_bound)
-    end
+     for c in page_partition.colors do
+         r_norm[c].value = norm_partition(page_partition[c])--,config.error_bound)
+     end
      
-    var l2_norm = 0.0
-    for x in r_norm do
-      l2_norm += x.value
-    end    
+     var l2_norm = 0.0
+     for x in r_norm do
+         l2_norm += x.value
+     end    
      
-    converged = l2_norm <= config.error_bound*config.error_bound
+     converged = l2_norm <= config.error_bound*config.error_bound
+   
+    
 
     if num_iterations > config.max_iterations then
-      break
-    end
+        break
+   end
+    --
+    -- TODO: Launch the tasks that you implemented above.
+    --       (and of course remove the break statement here.)
+    --
   end
   __fence(__execution, __block) -- This blocks to make sure we only time the pagerank computation
   var ts_stop = c.legion_get_current_time_in_micros()

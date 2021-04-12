@@ -70,6 +70,10 @@ do
     link.dest_page = dst_page
     src_page.outgoing_links += 1
   end
+
+  for page in r_pages do
+    page.delta = page.rank/page.outgoing_links
+  end
   c.fclose(f)
   var ts_stop = c.legion_get_current_time_in_micros()
   c.printf("Graph initialization took %.4f sec\n", (ts_stop - ts_start) * 1e-6)
@@ -91,11 +95,18 @@ end
 
 task PageRank_update(r_pages   : region(Page),
                       r_links   : region(Link(r_pages)),
-                      damp      : double)
+                      damp      : double,
+                      num_pages : uint64)
 where
-  reads(r_links, r_pages.rank, r_pages.delta),
-  writes(r_pages.rank)
+  reads(r_links, r_pages.rank, r_pages.delta, r_pages.outgoing_links),
+  writes(r_pages.rank, r_pages.delta, r_pages.old_rank)
 do
+  for page in r_pages do
+      -- page.delta = page.rank/page.outgoing_links
+      page.old_rank = page.rank
+      page.rank = (1.0-damp)/num_pages
+  end
+
   for link in r_links do
     link.dest_page.rank += damp*link.source_page.delta
   end
@@ -114,12 +125,14 @@ end
 
 task norm_partition(r_pages : region(Page))
 where
-  reads(r_pages.rank, r_pages.old_rank)
+  reads(r_pages.rank, r_pages.old_rank, r_pages.outgoing_links),
+  writes(r_pages.delta)
 do
   var l2_norm = 0.0
   for page in r_pages do
     var change = (page.rank-page.old_rank)
     l2_norm += change*change
+    page.delta = page.rank/page.outgoing_links
   end
   return l2_norm
 end
@@ -157,12 +170,14 @@ task toplevel()
     num_iterations += 1
     
     --for c in page_partition.colors
+    --[[
     for c in page_partition.colors do
       Delta_update(page_partition[c], config.damp, config.num_pages)
     end
+    --]]
   
     for c in link_partition.colors do
-      PageRank_update(page_partition[c],link_partition[c],config.damp) --, config.num_pages)
+      PageRank_update(page_partition[c],link_partition[c],config.damp, config.num_pages)
     end
 
     for c in page_partition.colors do
