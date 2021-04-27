@@ -9,8 +9,8 @@ CUDA_PATH=$(TACC_CUDA_DIR)
 
 SRCS := $(shell find $(SRC_DIR)/ -name '*.cpp')
 CUSRCS := $(shell find $(SRC_DIR)/ -name '*.cu')
-OBJS := $(addprefix $(ODIR)/, $(notdir $(SRCS:%.cpp=%.o)))
-CUOBJS := $(addprefix $(CUODIR)/, $(notdir $(CUSRCS:%.cu=%.o)))
+OBJS := $(addprefix $(ODIR)/, $(SRCS:%.cpp=%.o))
+CUOBJS := $(addprefix $(ODIR)/, $(CUSRCS:%.cu=%.o))
 
 MAIN = eigenfaces
 INCLUDES = $(addprefix -I , $(IDIR))
@@ -34,13 +34,13 @@ NVCC_FLAGS = -O3 -m64 $(GENCODE_FLAGS) $(NVCC_INCLUDES)
 
 all: $(MAIN) 
 
-$(ODIR)/%.o:
-	mkdir -p $(ODIR)
-	$(CC) -c $(filter %$(notdir $(basename $@)).cpp, $(SRCS)) -o $@ $< $(CCFLAGS) $(LIBS)
+$(ODIR)/%.o: %.cpp
+	mkdir -p $(shell dirname $@)
+	$(CC) -c -o $@ $< $(CCFLAGS) $(LIBS)
 
-$(CUODIR)/%.o:
-	mkdir -p $(CUODIR)
-	$(NVCC) $(filter %$(notdir $(basename $@)).cu, $(CUSRCS)) -c -o $@ $< $(NVCC_FLAGS)
+$(ODIR)/%.o: %.cu
+	mkdir -p $(shell dirname $@)
+	$(NVCC) -c -o $@ $< $(NVCC_FLAGS)
 
 $(MAIN): $(OBJS) $(CUOBJS)
 	$(CC) -o $@ $^ $(CCFLAGS) $(LIBS) $(NVCC_LDFLAGS)
