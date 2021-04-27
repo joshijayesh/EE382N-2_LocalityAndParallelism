@@ -14,6 +14,7 @@ typedef struct devConsts {
     int num_images;
 
     uint8_t* data;
+    uint8_t* mean;
 } DeviceConstants;
 
 inline void CUDAERR_CHECK(cudaError_t err, std::string error_msg, int err_num) {

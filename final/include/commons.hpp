@@ -15,6 +15,7 @@
 #define ERR_CUDA_GET_DEVICE 7
 #define ERR_CUDA_MEMCPY 8
 #define ERR_UNKNOWN_TARGET 9
+#define ERR_CUDA_MALLOC 10
 
 inline void CERR_CHECK(bool check, std::string error_msg, int err_num) {
     if(!check) {
