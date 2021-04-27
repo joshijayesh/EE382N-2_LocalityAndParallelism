@@ -13,6 +13,8 @@
 #define ERR_NO_IMGES_FOUND 5
 #define ERR_IMG_DIM_MISMATCH 6
 #define ERR_CUDA_GET_DEVICE 7
+#define ERR_CUDA_MEMCPY 8
+#define ERR_UNKNOWN_TARGET 9
 
 inline void CERR_CHECK(bool check, std::string error_msg, int err_num) {
     if(!check) {
