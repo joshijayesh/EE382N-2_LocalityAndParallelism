@@ -12,6 +12,7 @@
 #define ERR_FAILED_OPEN_FILE 4
 #define ERR_NO_IMGES_FOUND 5
 #define ERR_IMG_DIM_MISMATCH 6
+#define ERR_CUDA_GET_DEVICE 7
 
 inline void CERR_CHECK(bool check, std::string error_msg, int err_num) {
     if(!check) {
@@ -21,3 +22,4 @@ inline void CERR_CHECK(bool check, std::string error_msg, int err_num) {
 }
 
 #endif // __COMMON_H_
+

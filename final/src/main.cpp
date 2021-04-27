@@ -8,11 +8,11 @@
 #include "commons.hpp"
 #include "pgm/pgm.hpp"
 #include "cxxopts.hpp"
+#include "training/eigenfaces.hpp"
 
 
-void parse(std::string src, struct stat s, std::vector<PGMData> &pgm_list, int max_size) {
+void parse(std::string src, struct stat s, std::vector<PGMData> &pgm_list, uint32_t max_size) {
     CERR_CHECK(s.st_mode & (S_IFREG | S_IFDIR), "Unknown file " + src, ERR_FAILED_OPEN_FILE);
-    int count = 0;
 
     if(s.st_mode & S_IFDIR) {
         struct dirent *entry;
@@ -53,11 +53,13 @@ void verify(std::vector<PGMData> &pgm_list) {
         } else {
             CERR_CHECK(img.row == row, "Rows Mismatch " + std::to_string(row) + " vs " + std::to_string(img.row),
                        ERR_IMG_DIM_MISMATCH);
+            CERR_CHECK(img.col == col, "Cols Mismatch " + std::to_string(col) + " vs " + std::to_string(img.col),
+                       ERR_IMG_DIM_MISMATCH);
         }
     }
 }
 
-void start(std::string src, int max_size) {
+void start(std::string src, uint32_t max_size) {
     struct stat s;
     std::vector<PGMData> pgm_list = {};
 
@@ -69,6 +71,8 @@ void start(std::string src, int max_size) {
     std::cout << "Number of PGMs found " << pgm_list.size() << std::endl;
 
     verify(pgm_list);
+
+    launch_training(pgm_list);
 }
 
 
@@ -99,6 +103,6 @@ int main(int argc, char* argv[]) {
 
     max_pgms = result["num_pgms"].as<int>();
 
-    start(src, max_pgms);
+    start(src, (uint32_t) max_pgms);
 }
 
