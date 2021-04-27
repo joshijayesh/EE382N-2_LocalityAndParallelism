@@ -24,16 +24,17 @@ void PCARoutine::load_matrix() {
     std::cout << "Num CUDA Devices: " << device_count << std::endl;
 
     // Allocate the matrix on the GPU
-    std::cout << "Requesting " << sizeof(uint8_t) * width * height * num_images << " bytes" << std::endl;
+    std::cout << "Requesting : " << sizeof(uint8_t) * width * height * num_images << " Bytes" << std::endl;
     CUDAERR_CHECK(
-        cudaMalloc(&d_data, sizeof(uint8_t) * width * height * num_images),
+        cudaMalloc((void **) &d_data, sizeof(uint8_t) * width * height * num_images),
         "Unable to malloc d_data", ERR_CUDA_MALLOC);
 
     // Allocate space for mean image
+    std::cout << "Requesting : " << sizeof(uint8_t) * width * height << " Bytes" << std::endl;
     CUDAERR_CHECK(
-        cudaMalloc(&d_mean, sizeof(uint8_t) * width * height),
+        cudaMalloc((void **) &d_mean, sizeof(uint8_t) * width * height),
         "Unable to malloc d_mean", ERR_CUDA_MALLOC);
-
+    
     int i = 0;
     for (PGMData img : pgm_list) {
         CUDAERR_CHECK(
@@ -55,6 +56,8 @@ void PCARoutine::load_matrix() {
     CUDAERR_CHECK(
         cudaMemcpyToSymbol(pca_dev_params, &params, sizeof(DeviceConstants)),
         "Unable to copy device constants to device!", ERR_CUDA_MEMCPY);
+
+    std::cout << "Finished GPU vars" << std::endl;
 }
 
 void PCARoutine::mean_image() {
@@ -75,6 +78,7 @@ void PCARoutine::matmul() {
 
 PCARoutine::~PCARoutine() {
     if (d_data) {
+        std::cout << "Cleaning up~" << std::endl;
         cudaFree(d_data);
         cudaFree(d_mean);
     }

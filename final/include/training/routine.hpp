@@ -39,6 +39,8 @@ class JacobiPCA: public PCARoutine {
         {};
 
         void find_eigenvectors();
+
+        ~JacobiPCA() {};
 };
 
 #endif  // __TRAINING_ROUTINE_HPP_
