@@ -14,7 +14,10 @@ submodules, this should work: `git submodule update --init --recursive`
 Building
 --------
 
-Just run `make` for now -- no edits needed as of now.
+Just run `make`.
+
+Note! Auto-detect file modifications are not supported currently, so need to run `make clean` when making changes. Will look into soon~
+
 
 Runtime
 -------
