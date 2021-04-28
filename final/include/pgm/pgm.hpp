@@ -7,7 +7,7 @@ typedef struct _PGMData {
     int row;
     int col;
     int max_gray;
-    uint8_t *matrix;
+    float* matrix;
 } PGMData;
 
 PGMData read_PGM(std::string file_name);

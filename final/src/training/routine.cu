@@ -10,8 +10,9 @@
 #include "training/routine.hpp"
 
 #include "training/routine.cuh"
+#include "training/kernels.cuh"
 
-__constant__ DeviceConstants pca_dev_params;
+#include "checker/routine_test.cuh"
 
 
 void PCARoutine::load_matrix() {
@@ -24,23 +25,22 @@ void PCARoutine::load_matrix() {
     std::cout << "Num CUDA Devices: " << device_count << std::endl;
 
     // Allocate the matrix on the GPU
-    std::cout << "Requesting : " << sizeof(uint8_t) * width * height * num_images << " Bytes" << std::endl;
     CUDAERR_CHECK(
-        cudaMalloc((void **) &d_data, sizeof(uint8_t) * width * height * num_images),
+        cudaMalloc((void **) &d_data, sizeof(float) * width * height * num_images),
         "Unable to malloc d_data", ERR_CUDA_MALLOC);
 
     // Allocate space for mean image
-    std::cout << "Requesting : " << sizeof(uint8_t) * width * height << " Bytes" << std::endl;
     CUDAERR_CHECK(
-        cudaMalloc((void **) &d_mean, sizeof(uint8_t) * width * height),
+        cudaMalloc((void **) &d_mean, sizeof(float) * width * height),
         "Unable to malloc d_mean", ERR_CUDA_MALLOC);
     
+    // Copy over data to the GPU
     int i = 0;
     for (PGMData img : pgm_list) {
         CUDAERR_CHECK(
             cudaMemcpy(d_data + (i++ * width * height),
                        img.matrix,
-                       sizeof(uint8_t) * width * height,
+                       sizeof(float) * width * height,
                        cudaMemcpyHostToDevice),
             "Unable to copy matrices to device!", ERR_CUDA_MEMCPY);
     }
@@ -52,6 +52,7 @@ void PCARoutine::load_matrix() {
     params.num_images = num_images;
     params.data = d_data;
     params.mean = d_mean;
+    params.image_size = width * height;
 
     CUDAERR_CHECK(
         cudaMemcpyToSymbol(pca_dev_params, &params, sizeof(DeviceConstants)),
@@ -61,7 +62,15 @@ void PCARoutine::load_matrix() {
 }
 
 void PCARoutine::mean_image() {
+    // 1 warp per pixel
+    uint32_t nx = (width + WARPS_PER_BLOCK) / WARPS_PER_BLOCK;
+    dim3 blocks2D (nx, height);
+    dim3 grid2D (THREADS_PER_BLOCK, 1);
 
+    mean_reduce<<<blocks2D, grid2D>>> ();
+    cudaDeviceSynchronize();
+
+    mean_checker(width, height, pgm_list, d_mean);
 }
 
 void PCARoutine::subtract() {

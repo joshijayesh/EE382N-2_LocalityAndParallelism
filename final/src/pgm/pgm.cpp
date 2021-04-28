@@ -50,11 +50,11 @@ PGMData read_PGM(std::string file_name) {
     pgm_file.get(c);
 
     // Read matrix
-    data.matrix = (uint8_t *) malloc(sizeof(uint8_t) * (data.row * data.col));
+    data.matrix = (float *) malloc(sizeof(float) * (data.row * data.col));
     for(i = 0; i < data.row; i += 1) {
         for(j = 0; j < data.col; j += 1) {
             pgm_file.get(lo);
-            data.matrix[(i * data.col) + j] = lo;
+            data.matrix[(i * data.col) + j] = static_cast<float> (lo);
         }
     }
 

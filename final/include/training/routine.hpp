@@ -28,8 +28,8 @@ class PCARoutine {
         int height;
         int num_images;
 
-        uint8_t *d_mean;
-        uint8_t *d_data;
+        float *d_mean;
+        float *d_data;
 };
 
 class JacobiPCA: public PCARoutine {

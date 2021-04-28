@@ -20,6 +20,7 @@ PCARoutine* find_class(std::string target, std::vector<PGMData> pgm_list) {
 void launch_training(std::vector<PGMData> pgm_list) {
     PCARoutine* routine = find_class("jacobi", pgm_list);
     routine->load_matrix();
+    routine->mean_image();
     delete routine;
 }
 
