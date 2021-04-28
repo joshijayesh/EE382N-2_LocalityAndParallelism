@@ -14,7 +14,6 @@
 
 #define FULL_WARP_MASK 0xFFFFFFFF
 
-
 typedef struct devConsts {
     int width;
     int height;
@@ -22,7 +21,7 @@ typedef struct devConsts {
     int num_images;
 
     float* data;
-    float* mean;
+    float* data_transpose;
 } DeviceConstants;
 
 inline void CUDAERR_CHECK(cudaError_t err, std::string error_msg, int err_num) {
@@ -33,5 +32,4 @@ inline void CUDAERR_CHECK(cudaError_t err, std::string error_msg, int err_num) {
 }
 
 // Maybe put this in a separate file
-__constant__ DeviceConstants pca_dev_params;
 

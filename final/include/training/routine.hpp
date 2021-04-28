@@ -16,7 +16,6 @@ class PCARoutine {
 
         void load_matrix();
         void mean_image();
-        void subtract();
         void transpose();
         void matmul();
         virtual void find_eigenvectors()=0;
@@ -28,8 +27,9 @@ class PCARoutine {
         int height;
         int num_images;
 
-        float *d_mean;
         float *d_data;
+        float *d_data_transpose;
+        void **d_params;
 };
 
 class JacobiPCA: public PCARoutine {

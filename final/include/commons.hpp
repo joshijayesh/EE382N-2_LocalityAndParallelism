@@ -6,6 +6,9 @@
 #include <string>
 #include <iostream>
 
+// Comment this out to disable checker
+#define EN_CHECKER
+
 #define ERR_FAILED_OPEN_PGM 1
 #define ERR_UNSUPPORTED_GRAY 2
 #define ERR_ARGPARSE_FAILED 3
@@ -16,6 +19,7 @@
 #define ERR_CUDA_MEMCPY 8
 #define ERR_UNKNOWN_TARGET 9
 #define ERR_CUDA_MALLOC 10
+#define ERR_CHECKER_FAILED 11
 
 inline void CERR_CHECK(bool check, std::string error_msg, int err_num) {
     if(!check) {

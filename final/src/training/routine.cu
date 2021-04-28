@@ -14,6 +14,10 @@
 
 #include "checker/routine_test.cuh"
 
+// After some digging __constant__ is not scalable across multiple files... this thing sucks~
+// Hence now just use const ptrs passed to each kernel
+// __constant__ DeviceConstants pca_dev_params;
+
 
 void PCARoutine::load_matrix() {
     int device_count;
@@ -29,10 +33,10 @@ void PCARoutine::load_matrix() {
         cudaMalloc((void **) &d_data, sizeof(float) * width * height * num_images),
         "Unable to malloc d_data", ERR_CUDA_MALLOC);
 
-    // Allocate space for mean image
+
     CUDAERR_CHECK(
-        cudaMalloc((void **) &d_mean, sizeof(float) * width * height),
-        "Unable to malloc d_mean", ERR_CUDA_MALLOC);
+        cudaMalloc((void **) &d_params, sizeof(DeviceConstants)),
+        "Unable to malloc d_params", ERR_CUDA_MALLOC);
     
     // Copy over data to the GPU
     int i = 0;
@@ -51,30 +55,31 @@ void PCARoutine::load_matrix() {
     params.height = height;
     params.num_images = num_images;
     params.data = d_data;
-    params.mean = d_mean;
     params.image_size = width * height;
 
     CUDAERR_CHECK(
-        cudaMemcpyToSymbol(pca_dev_params, &params, sizeof(DeviceConstants)),
+        cudaMemcpy(d_params,
+                   &params,
+                   sizeof(DeviceConstants),
+                   cudaMemcpyHostToDevice),
         "Unable to copy device constants to device!", ERR_CUDA_MEMCPY);
 
     std::cout << "Finished GPU vars" << std::endl;
 }
 
+// Calculates mean and subtracts from each image yielding A
 void PCARoutine::mean_image() {
     // 1 warp per pixel
     uint32_t nx = (width + WARPS_PER_BLOCK) / WARPS_PER_BLOCK;
     dim3 blocks2D (nx, height);
     dim3 grid2D (THREADS_PER_BLOCK, 1);
 
-    mean_reduce<<<blocks2D, grid2D>>> ();
+    mean_reduce<<<blocks2D, grid2D>>> ((DeviceConstants *)(d_params));
     cudaDeviceSynchronize();
 
-    mean_checker(width, height, pgm_list, d_mean);
-}
-
-void PCARoutine::subtract() {
-
+    #ifdef EN_CHECKER
+    mean_checker(width, height, pgm_list, d_data);
+    #endif
 }
 
 void PCARoutine::transpose() {
@@ -89,7 +94,7 @@ PCARoutine::~PCARoutine() {
     if (d_data) {
         std::cout << "Cleaning up~" << std::endl;
         cudaFree(d_data);
-        cudaFree(d_mean);
+        cudaFree(d_params);
     }
 }
 

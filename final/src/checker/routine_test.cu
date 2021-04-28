@@ -13,17 +13,18 @@
 #include "training/kernels.cuh"
 
 
-void mean_checker(int width, int height, std::vector<PGMData> pgm_list, float* d_mean) {
-    float *mean;
+void mean_checker(int width, int height, std::vector<PGMData> pgm_list, float* d_data) {
+    float *data;
+    bool fail = false;
 
-    mean = (float *) malloc(sizeof(float) * (width * height));
+    data = (float *) malloc(sizeof(float) * (width * height) * pgm_list.size());
 
     CUDAERR_CHECK(
-        cudaMemcpy(mean,
-                   d_mean,
-                   sizeof(float) * width * height,
+        cudaMemcpy(data,
+                   d_data,
+                   sizeof(float) * width * height * pgm_list.size(),
                    cudaMemcpyDeviceToHost),
-        "Unable to copy mean from device!", ERR_CUDA_MEMCPY);
+        "Unable to copy data from device!", ERR_CUDA_MEMCPY);
 
     for (int i = 0; i < height; i += 1) {
         for(int j = 0; j < width; j += 1) {
@@ -34,12 +35,19 @@ void mean_checker(int width, int height, std::vector<PGMData> pgm_list, float* d
             }
             sum /= pgm_list.size();
 
-            if(sum != mean[pixel]) {
-                std::cout << "Mean compare failed! Expected " << sum << " Actual " << mean[pixel] << std::endl;
+            int k = 0;
+            for(PGMData img : pgm_list) {
+                float result = data[pixel + (k++ * (width * height))];
+                if(result != img.matrix[pixel] - sum) {
+                    std::cout << "Mean compare failed px " << pixel << "! Expected " << img.matrix[pixel] - sum << " Actual " << result << std::endl;
+                    fail = true;
+                }
             }
         }
     }
 
-    free(mean);
+    CERR_CHECK(!fail, "Mean checker failed!!", ERR_CHECKER_FAILED);
+
+    free(data);
 }
 
