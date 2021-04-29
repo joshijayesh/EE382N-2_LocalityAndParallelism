@@ -13,7 +13,7 @@
 #include "training/kernels.cuh"
 
 
-void mean_checker(int width, int height, std::vector<PGMData> pgm_list, float* d_data) {
+void mean_checker(int width, int height, std::vector<PGMData> pgm_list, float* A) {
     float *data;
     bool fail = false;
 
@@ -21,7 +21,7 @@ void mean_checker(int width, int height, std::vector<PGMData> pgm_list, float* d
 
     CUDAERR_CHECK(
         cudaMemcpy(data,
-                   d_data,
+                   A,
                    sizeof(float) * width * height * pgm_list.size(),
                    cudaMemcpyDeviceToHost),
         "Unable to copy data from device!", ERR_CUDA_MEMCPY);
@@ -36,8 +36,9 @@ void mean_checker(int width, int height, std::vector<PGMData> pgm_list, float* d
             sum /= pgm_list.size();
 
             int k = 0;
+            int row = i * (width * pgm_list.size());
             for(PGMData img : pgm_list) {
-                float result = data[pixel + (k++ * (width * height))];
+                float result = data[row + j + (k++ * width)];
                 if(result != img.matrix[pixel] - sum) {
                     std::cout << "Mean compare failed px " << pixel << "! Expected " << img.matrix[pixel] - sum << " Actual " << result << std::endl;
                     fail = true;
@@ -47,7 +48,48 @@ void mean_checker(int width, int height, std::vector<PGMData> pgm_list, float* d
     }
 
     CERR_CHECK(!fail, "Mean checker failed!!", ERR_CHECKER_FAILED);
+    std::cout << "Mean checker passed!" << std::endl;
 
     free(data);
+}
+
+
+void transpose_checker(int width, int height, float* A, float* A_T) {
+    float *data;
+    float *data_T;
+    bool fail = false;
+    
+    data = (float *) malloc(sizeof(float) * (width * height));
+    data_T = (float *) malloc(sizeof(float) * (width * height)); 
+
+
+    CUDAERR_CHECK(
+        cudaMemcpy(data,
+                   A,
+                   sizeof(float) * width * height,
+                   cudaMemcpyDeviceToHost),
+        "Unable to copy data from device!", ERR_CUDA_MEMCPY);
+
+    CUDAERR_CHECK(
+        cudaMemcpy(data_T,
+                   A_T,
+                   sizeof(float) * width * height,
+                   cudaMemcpyDeviceToHost),
+        "Unable to copy data from device!", ERR_CUDA_MEMCPY);
+
+    for(int n = 0; n < width * height; n += 1) {
+        int i = n / height;
+        int j = n % height;
+        if(data_T[n] != data[width * j + i]) {
+            std::cout << "Transpose failed i=" << i << ",j=" << j << "! Expected " << data[width * j + i] << " Actual " << data_T[n] << std::endl;
+            fail = true;
+        }
+    }
+
+    CERR_CHECK(!fail, "Transpose checker failed!!", ERR_CHECKER_FAILED);
+    std::cout << "Transpose checker passed!" << std::endl;
+
+    free(data);
+    free(data_T);
 }
 

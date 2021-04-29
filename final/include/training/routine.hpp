@@ -27,6 +27,7 @@ class PCARoutine {
         int height;
         int num_images;
 
+        float *d_data_temp;
         float *d_data;
         float *d_data_transpose;
         void **d_params;

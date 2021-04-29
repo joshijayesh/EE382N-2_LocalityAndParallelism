@@ -33,6 +33,14 @@ void PCARoutine::load_matrix() {
         cudaMalloc((void **) &d_data, sizeof(float) * width * height * num_images),
         "Unable to malloc d_data", ERR_CUDA_MALLOC);
 
+    CUDAERR_CHECK(
+        cudaMalloc((void **) &d_data_temp, sizeof(float) * width * height * num_images),
+        "Unable to malloc d_data", ERR_CUDA_MALLOC);
+
+    CUDAERR_CHECK(
+        cudaMalloc((void **) &d_data_transpose, sizeof(float) * width * height * num_images),
+        "Unable to malloc d_data", ERR_CUDA_MALLOC);
+
 
     CUDAERR_CHECK(
         cudaMalloc((void **) &d_params, sizeof(DeviceConstants)),
@@ -42,7 +50,7 @@ void PCARoutine::load_matrix() {
     int i = 0;
     for (PGMData img : pgm_list) {
         CUDAERR_CHECK(
-            cudaMemcpy(d_data + (i++ * width * height),
+            cudaMemcpy(d_data_temp + (i++ * width * height),
                        img.matrix,
                        sizeof(float) * width * height,
                        cudaMemcpyHostToDevice),
@@ -53,8 +61,12 @@ void PCARoutine::load_matrix() {
     DeviceConstants params;
     params.width = width;
     params.height = height;
+    params.n = width * num_images;
+    params.m = height;
     params.num_images = num_images;
-    params.data = d_data;
+    params.data = d_data_temp;
+    params.A = d_data;
+    params.A_t = d_data_transpose;
     params.image_size = width * height;
 
     CUDAERR_CHECK(
@@ -65,6 +77,11 @@ void PCARoutine::load_matrix() {
         "Unable to copy device constants to device!", ERR_CUDA_MEMCPY);
 
     std::cout << "Finished GPU vars" << std::endl;
+    std::cout << "width = " << width << std::endl;
+    std::cout << "height = " << height << std::endl;
+    std::cout << "num_images = " << num_images << std::endl;
+    std::cout << "n = " << params.n << std::endl;
+    std::cout << "m = " << params.m << std::endl;
 }
 
 // Calculates mean and subtracts from each image yielding A
@@ -83,17 +100,29 @@ void PCARoutine::mean_image() {
 }
 
 void PCARoutine::transpose() {
+    uint32_t n = width * num_images;
+    uint32_t m = height;
 
+    dim3 block2D (((n + TRANSPOSE_TILE) / TRANSPOSE_TILE), ((m + TRANSPOSE_TILE) / TRANSPOSE_TILE));
+    dim3 grid2D (TRANSPOSE_BLOCK_DIM_X, TRANSPOSE_BLOCK_DIM_Y);
+
+    transpose_kernel<<<block2D, grid2D>>> (n, m, d_data, d_data_transpose);
+    cudaDeviceSynchronize();
+
+    #ifdef EN_CHECKER
+    transpose_checker(n, m, d_data, d_data_transpose);
+    #endif
 }
 
 void PCARoutine::matmul() {
-
 }
 
 PCARoutine::~PCARoutine() {
     if (d_data) {
         std::cout << "Cleaning up~" << std::endl;
         cudaFree(d_data);
+        cudaFree(d_data_temp);
+        cudaFree(d_data_transpose);
         cudaFree(d_params);
     }
 }
