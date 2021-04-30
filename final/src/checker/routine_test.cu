@@ -36,9 +36,9 @@ void mean_checker(int width, int height, std::vector<PGMData> pgm_list, float* A
             sum /= pgm_list.size();
 
             int k = 0;
-            int row = i * (width * pgm_list.size());
+            int row = pixel * pgm_list.size();
             for(PGMData img : pgm_list) {
-                float result = data[row + j + (k++ * width)];
+                float result = data[row + k++];
                 if(result != img.matrix[pixel] - sum) {
                     std::cout << "Mean compare failed px " << pixel << "! Expected " << img.matrix[pixel] - sum << " Actual " << result << std::endl;
                     fail = true;

@@ -30,6 +30,7 @@ class PCARoutine {
         float *d_data_temp;
         float *d_data;
         float *d_data_transpose;
+        float *d_data_cov;
         void **d_params;
 };
 

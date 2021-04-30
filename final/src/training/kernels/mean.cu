@@ -42,8 +42,8 @@ void mean_reduce(const DeviceConstants *pca_dev_params) {
         img_num = lane;
         img_ptr = pca_dev_params->data + pixel + (lane * stride);
 
-        uint32_t A_pixel = (blockIdx.y * pca_dev_params->n) + idx_x;
-        uint32_t A_stride = pca_dev_params->width;
+        uint32_t A_pixel = ((blockIdx.y * pca_dev_params->width) + idx_x) * pca_dev_params->num_images;
+        uint32_t A_stride = 1;
         float *A_ptr = pca_dev_params->A + A_pixel + (lane * A_stride);
 
         while(img_num < pca_dev_params->num_images) {

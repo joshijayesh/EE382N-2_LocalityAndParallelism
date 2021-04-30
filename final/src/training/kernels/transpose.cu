@@ -17,6 +17,7 @@ void transpose_kernel(uint32_t n, uint32_t m, float *A, float *A_t) {
             block[threadIdx.y + j][threadIdx.x] = A[(idx_y + j) * n + idx_x];
 
     __syncthreads();
+
     idx_x = (blockIdx.y * TRANSPOSE_TILE) + threadIdx.x;
     idx_y = (blockIdx.x * TRANSPOSE_TILE) + threadIdx.y;
 

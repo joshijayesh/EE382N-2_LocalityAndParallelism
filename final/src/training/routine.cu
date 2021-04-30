@@ -41,6 +41,10 @@ void PCARoutine::load_matrix() {
         cudaMalloc((void **) &d_data_transpose, sizeof(float) * width * height * num_images),
         "Unable to malloc d_data", ERR_CUDA_MALLOC);
 
+    // cov = (width * num images)^2 -- This is hugeee!
+    CUDAERR_CHECK(
+        cudaMalloc((void **) &d_data_cov, sizeof(float) * (width * num_images * width * num_images)),
+        "Unable to malloc d_data", ERR_CUDA_MALLOC);
 
     CUDAERR_CHECK(
         cudaMalloc((void **) &d_params, sizeof(DeviceConstants)),
@@ -61,8 +65,8 @@ void PCARoutine::load_matrix() {
     DeviceConstants params;
     params.width = width;
     params.height = height;
-    params.n = width * num_images;
-    params.m = height;
+    params.n = num_images;
+    params.m = height * width;
     params.num_images = num_images;
     params.data = d_data_temp;
     params.A = d_data;
@@ -100,8 +104,8 @@ void PCARoutine::mean_image() {
 }
 
 void PCARoutine::transpose() {
-    uint32_t n = width * num_images;
-    uint32_t m = height;
+    uint32_t n = num_images;
+    uint32_t m = width * height;
 
     dim3 block2D (((n + TRANSPOSE_TILE) / TRANSPOSE_TILE), ((m + TRANSPOSE_TILE) / TRANSPOSE_TILE));
     dim3 grid2D (TRANSPOSE_BLOCK_DIM_X, TRANSPOSE_BLOCK_DIM_Y);
