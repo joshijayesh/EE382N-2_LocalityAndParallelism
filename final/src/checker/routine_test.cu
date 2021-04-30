@@ -85,11 +85,65 @@ void transpose_checker(int width, int height, float* A, float* A_T) {
             fail = true;
         }
     }
+    free(data);
+    free(data_T);
 
     CERR_CHECK(!fail, "Transpose checker failed!!", ERR_CHECKER_FAILED);
     std::cout << "Transpose checker passed!" << std::endl;
+}
 
-    free(data);
-    free(data_T);
+
+void matmul_checker(uint32_t n, uint32_t m, uint32_t p, float *d_A, float *d_B, float *d_C) {
+    float *A;
+    float *B;
+    float *C;
+    bool fail = false;
+
+    A = (float *) malloc(sizeof(float) * (n * m));
+    B = (float *) malloc(sizeof(float) * (m * p));
+    C = (float *) malloc(sizeof(float) * (n * p));
+
+    CUDAERR_CHECK(
+        cudaMemcpy(A,
+                   d_A,
+                   sizeof(float) * n * m,
+                   cudaMemcpyDeviceToHost),
+        "Unable to copy data from device!: A", ERR_CUDA_MEMCPY);
+
+    CUDAERR_CHECK(
+        cudaMemcpy(B,
+                   d_B,
+                   sizeof(float) * m * p,
+                   cudaMemcpyDeviceToHost),
+        "Unable to copy data from device! :B", ERR_CUDA_MEMCPY);
+
+    CUDAERR_CHECK(
+        cudaMemcpy(C,
+                   d_C,
+                   sizeof(float) * n * p,
+                   cudaMemcpyDeviceToHost),
+        "Unable to copy data from device! :C", ERR_CUDA_MEMCPY);
+
+    for(int j = 0; j < n; j += 1) {
+        for(int i = 0; i < p; i += 1) {
+            float sum = 0.0;
+            for(int k = 0; k < m; k += 1) {
+                sum += A[j * m + k] * B[k * p + i];
+            }
+
+            if(C[j * p + i] != sum) {
+                std::cout << "MATMUL failed i=" << i << ",j=" << j << "! Expected " << sum << " Actual " << C[j * p + i] << std::endl;
+                fail = true;
+            }
+
+        }
+    }
+
+    free(A);
+    free(B);
+    free(C);
+
+    CERR_CHECK(!fail, "Matmul checker failed!!", ERR_CHECKER_FAILED);
+    std::cout << "Matmul checker passed!" << std::endl;
 }
 

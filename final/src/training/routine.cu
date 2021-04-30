@@ -43,7 +43,7 @@ void PCARoutine::load_matrix() {
 
     // cov = (width * num images)^2 -- This is hugeee!
     CUDAERR_CHECK(
-        cudaMalloc((void **) &d_data_cov, sizeof(float) * (width * num_images * width * num_images)),
+        cudaMalloc((void **) &d_data_cov, sizeof(float) * (num_images * num_images)),
         "Unable to malloc d_data", ERR_CUDA_MALLOC);
 
     CUDAERR_CHECK(
@@ -91,7 +91,7 @@ void PCARoutine::load_matrix() {
 // Calculates mean and subtracts from each image yielding A
 void PCARoutine::mean_image() {
     // 1 warp per pixel
-    uint32_t nx = (width + WARPS_PER_BLOCK) / WARPS_PER_BLOCK;
+    uint32_t nx = (width + WARPS_PER_BLOCK - 1) / WARPS_PER_BLOCK;
     dim3 blocks2D (nx, height);
     dim3 grid2D (THREADS_PER_BLOCK, 1);
 
@@ -103,11 +103,11 @@ void PCARoutine::mean_image() {
     #endif
 }
 
-void PCARoutine::transpose() {
+void PCARoutine::compute_covariance() {
     uint32_t n = num_images;
     uint32_t m = width * height;
 
-    dim3 block2D (((n + TRANSPOSE_TILE) / TRANSPOSE_TILE), ((m + TRANSPOSE_TILE) / TRANSPOSE_TILE));
+    dim3 block2D (((n + TRANSPOSE_TILE - 1) / TRANSPOSE_TILE), ((m + TRANSPOSE_TILE - 1) / TRANSPOSE_TILE));
     dim3 grid2D (TRANSPOSE_BLOCK_DIM_X, TRANSPOSE_BLOCK_DIM_Y);
 
     transpose_kernel<<<block2D, grid2D>>> (n, m, d_data, d_data_transpose);
@@ -116,9 +116,16 @@ void PCARoutine::transpose() {
     #ifdef EN_CHECKER
     transpose_checker(n, m, d_data, d_data_transpose);
     #endif
-}
 
-void PCARoutine::matmul() {
+    dim3 m_block2D (((n + MATMUL_TILE_DIM - 1) / MATMUL_TILE_DIM), ((n + MATMUL_TILE_DIM- 1) / MATMUL_TILE_DIM));
+    dim3 m_grid2D (MATMUL_BLOCK_DIM_X, MATMUL_BLOCK_DIM_Y);
+
+    matmul<<<m_block2D, m_grid2D>>> (n, m, n, d_data_transpose, d_data, d_data_cov);
+    cudaDeviceSynchronize();
+
+    #ifdef EN_CHECKER
+    matmul_checker(n, m, n, d_data_transpose, d_data, d_data_cov);
+    #endif
 }
 
 PCARoutine::~PCARoutine() {
@@ -127,6 +134,7 @@ PCARoutine::~PCARoutine() {
         cudaFree(d_data);
         cudaFree(d_data_temp);
         cudaFree(d_data_transpose);
+        cudaFree(d_data_cov);
         cudaFree(d_params);
     }
 }

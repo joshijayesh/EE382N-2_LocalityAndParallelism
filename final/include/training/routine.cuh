@@ -17,6 +17,10 @@
 #define TRANSPOSE_BLOCK_STRIDE 4
 #define TRANSPOSE_TILE 32
 
+#define MATMUL_TILE_DIM 32
+#define MATMUL_BLOCK_DIM_X 32
+#define MATMUL_BLOCK_DIM_Y 8
+
 #define FULL_WARP_MASK 0xFFFFFFFF
 
 typedef struct devConsts {

@@ -16,8 +16,7 @@ class PCARoutine {
 
         void load_matrix();
         void mean_image();
-        void transpose();
-        void matmul();
+        void compute_covariance();
         virtual void find_eigenvectors()=0;
 
         virtual ~PCARoutine();
