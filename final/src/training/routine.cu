@@ -125,6 +125,7 @@ void PCARoutine::compute_covariance() {
     dim3 m_grid2D (MATMUL_BLOCK_DIM_X, MATMUL_BLOCK_DIM_Y);
 
     matmul<<<m_block2D, m_grid2D>>> (n, m, n, d_data_transpose, d_data, d_data_cov);
+    identity_matrix<<<m_block2D, m_grid2D>>> (n, d_eigenvectors);
     cudaDeviceSynchronize();
 
     #ifdef EN_CHECKER

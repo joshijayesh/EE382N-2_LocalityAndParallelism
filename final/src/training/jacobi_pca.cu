@@ -77,8 +77,10 @@ __global__ void maxElemalongx(float* A_s, int* k_s, int* l_s, uint32_t n){
         i = i/2;
     }
 
+    /*
     for(int io =0; io<n;io++)
         printf(" thread_y, %d, %d, %f\n", thread_y, k_s[thread_y + io], A_s[thread_y + io]);
+    */
     
     return;
 }
@@ -249,14 +251,14 @@ void JacobiPCA::find_eigenvectors() {
     float *A = d_data_cov;
     float *p = d_eigenvectors;
     uint32_t n = num_images;
-    printf("%s,%f\n","Tol = ",TOL);
+    // printf("%s,%f\n","Tol = ",TOL);
 
     /* doesn't pass in host A
     for(int io =0; io<n*n;io++)
         printf("%f,",A_h[io]);
     */
 
-    printf("%s\n","host side" );
+    // printf("%s\n","host side" );
 
     float *A_s;
     int *k_s,*l_s;
@@ -295,8 +297,10 @@ void JacobiPCA::find_eigenvectors() {
         k = *ptr_k;
         l = *ptr_l;
         Amax = *ptr_Amax;
+        /*
         printf("Amax for iter - %d,%f\n", iter,Amax);
         printf("K,l = %d,%d\n",k,l);
+        */
 
 
         if (Amax < TOL)
@@ -319,7 +323,9 @@ void JacobiPCA::find_eigenvectors() {
 
     }
 
+    /*
     printf("%s\n","host side ends" );
+    */
 
     /* This can be done for debug
     size_t size = sizeof(float)* n*n;
