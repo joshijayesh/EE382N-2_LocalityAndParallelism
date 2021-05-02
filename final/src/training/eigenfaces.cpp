@@ -22,6 +22,7 @@ void launch_training(std::vector<PGMData> pgm_list) {
     routine->load_matrix();
     routine->mean_image();
     routine->compute_covariance();
+    routine->find_eigenvectors();
     delete routine;
 }
 

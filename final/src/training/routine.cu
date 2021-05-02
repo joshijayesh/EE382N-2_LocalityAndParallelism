@@ -47,6 +47,10 @@ void PCARoutine::load_matrix() {
         "Unable to malloc d_data", ERR_CUDA_MALLOC);
 
     CUDAERR_CHECK(
+        cudaMalloc((void **) &d_eigenvectors, sizeof(float) * (num_images * num_images)),
+        "Unable to malloc d_data", ERR_CUDA_MALLOC);
+
+    CUDAERR_CHECK(
         cudaMalloc((void **) &d_params, sizeof(DeviceConstants)),
         "Unable to malloc d_params", ERR_CUDA_MALLOC);
     
@@ -135,6 +139,7 @@ PCARoutine::~PCARoutine() {
         cudaFree(d_data_temp);
         cudaFree(d_data_transpose);
         cudaFree(d_data_cov);
+        cudaFree(d_eigenvectors);
         cudaFree(d_params);
     }
 }
