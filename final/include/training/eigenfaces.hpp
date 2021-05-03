@@ -6,7 +6,7 @@
 #include "pgm/pgm.hpp"
 
 
-void launch_training(std::vector<PGMData>);
+void launch_training(std::vector<PGMData>, uint32_t num_components);
 
 #endif //__TRAINING_EIGENFACES_HPP_
 

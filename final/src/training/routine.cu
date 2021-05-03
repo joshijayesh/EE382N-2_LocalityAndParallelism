@@ -51,6 +51,18 @@ void PCARoutine::load_matrix() {
         "Unable to malloc d_data", ERR_CUDA_MALLOC);
 
     CUDAERR_CHECK(
+        cudaMalloc((void **) &d_real_eigenvectors, sizeof(float) * (num_images * num_components)),
+        "Unable to malloc d_data", ERR_CUDA_MALLOC);
+
+    CUDAERR_CHECK(
+        cudaMalloc((void **) &d_real_eigenvectors_transpose, sizeof(float) * (num_images * num_components)),
+        "Unable to malloc d_data", ERR_CUDA_MALLOC);
+
+    CUDAERR_CHECK(
+        cudaMalloc((void **) &d_results, sizeof(float) * (num_images * num_components)),
+        "Unable to malloc d_data", ERR_CUDA_MALLOC);
+
+    CUDAERR_CHECK(
         cudaMalloc((void **) &d_params, sizeof(DeviceConstants)),
         "Unable to malloc d_params", ERR_CUDA_MALLOC);
     
@@ -121,7 +133,7 @@ void PCARoutine::compute_covariance() {
     transpose_checker(n, m, d_data, d_data_transpose);
     #endif
 
-    dim3 m_block2D (((n + MATMUL_TILE_DIM - 1) / MATMUL_TILE_DIM), ((n + MATMUL_TILE_DIM- 1) / MATMUL_TILE_DIM));
+    dim3 m_block2D (((n + MATMUL_TILE_DIM - 1) / MATMUL_TILE_DIM), ((n + MATMUL_TILE_DIM - 1) / MATMUL_TILE_DIM));
     dim3 m_grid2D (MATMUL_BLOCK_DIM_X, MATMUL_BLOCK_DIM_Y);
 
     matmul<<<m_block2D, m_grid2D>>> (n, m, n, d_data_transpose, d_data, d_data_cov);
@@ -133,6 +145,37 @@ void PCARoutine::compute_covariance() {
     #endif
 }
 
+void PCARoutine::pca_reduction() {
+}
+
+
+void PCARoutine::post_process() {
+    uint32_t n = num_images;
+    uint32_t m = width * height;
+    uint32_t p = num_components;
+
+    dim3 block2D (((m + TRANSPOSE_TILE - 1) / TRANSPOSE_TILE), ((p + TRANSPOSE_TILE - 1) / TRANSPOSE_TILE));
+    dim3 grid2D (TRANSPOSE_BLOCK_DIM_X, TRANSPOSE_BLOCK_DIM_Y);
+
+    matmul<<<block2D, grid2D>>> (m, n, p, d_data, d_eigenvectors, d_real_eigenvectors);
+    cudaDeviceSynchronize();
+
+    #ifdef EN_CHECKER
+    matmul_checker(m, n, p, d_data, d_eigenvectors, d_real_eigenvectors);
+    #endif
+
+    transpose_kernel<<<block2D, grid2D>>> (p, m, d_real_eigenvectors, d_real_eigenvectors_transpose);
+
+    #ifdef EN_CHECKER
+    transpose_checker(p, m, d_real_eigenvectors, d_real_eigenvectors_transpose);
+    #endif
+
+    dim3 block2D_2 (((m + TRANSPOSE_TILE - 1) / TRANSPOSE_TILE), ((p + TRANSPOSE_TILE - 1) / TRANSPOSE_TILE));
+    dim3 grid2D_2 (TRANSPOSE_BLOCK_DIM_X, TRANSPOSE_BLOCK_DIM_Y);
+
+    matmul<<<block2D_2, grid2D_2>>> (p, m, n, d_real_eigenvectors_transpose, d_data, d_results);
+}
+
 PCARoutine::~PCARoutine() {
     if (d_data) {
         std::cout << "Cleaning up~" << std::endl;
@@ -141,7 +184,10 @@ PCARoutine::~PCARoutine() {
         cudaFree(d_data_transpose);
         cudaFree(d_data_cov);
         cudaFree(d_eigenvectors);
+        cudaFree(d_real_eigenvectors);
+        cudaFree(d_real_eigenvectors_transpose);
         cudaFree(d_params);
+        cudaFree(d_results);
     }
 }
 

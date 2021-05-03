@@ -59,7 +59,7 @@ void verify(std::vector<PGMData> &pgm_list) {
     }
 }
 
-void start(std::string src, uint32_t max_size) {
+void start(std::string src, uint32_t max_size, uint32_t num_components) {
     struct stat s;
     std::vector<PGMData> pgm_list = {};
 
@@ -72,18 +72,20 @@ void start(std::string src, uint32_t max_size) {
 
     verify(pgm_list);
 
-    launch_training(pgm_list);
+    launch_training(pgm_list, num_components);
 }
 
 
 int main(int argc, char* argv[]) {
     std::string src;
     int max_pgms;
+    int num_components;
     cxxopts::Options options("final", "Face recognition on GPU using PCA");
 
     options.add_options()
         ("s,src", "Main directory containing .pgm files", cxxopts::value<std::string>())
         ("n,num_pgms", "Max number of files to load", cxxopts::value<int>()->default_value("100000"))
+        ("k,num_components", "Number of components to compute", cxxopts::value<int>()->default_value("100000"))
         ("h,help", "Print usage");
 
     auto result = options.parse(argc, argv);
@@ -102,7 +104,8 @@ int main(int argc, char* argv[]) {
     }
 
     max_pgms = result["num_pgms"].as<int>();
+    num_components = result["num_components"].as<int>();
 
-    start(src, (uint32_t) max_pgms);
+    start(src, (uint32_t) max_pgms, (uint32_t) num_components);
 }
 
