@@ -176,7 +176,7 @@ void PCARoutine::post_process() {
     matmul<<<block2D_2, grid2D_2>>> (p, m, n, d_real_eigenvectors_transpose, d_data, d_results);
 
     #ifdef EN_CHECKER
-    matmul_checker(p, m, n, d_data, d_eigenvectors, d_real_eigenvectors);
+    matmul_checker(p, m, n, d_real_eigenvectors_transpose, d_data, d_results);
     #endif
 }
 
