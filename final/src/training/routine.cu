@@ -55,6 +55,10 @@ void PCARoutine::load_matrix() {
         "Unable to malloc d_data", ERR_CUDA_MALLOC);
 
     CUDAERR_CHECK(
+        cudaMalloc((void **) &d_real_eigenvectors_norm, sizeof(float) * (num_images * num_components)),
+        "Unable to malloc d_data", ERR_CUDA_MALLOC);
+
+    CUDAERR_CHECK(
         cudaMalloc((void **) &d_real_eigenvectors_transpose, sizeof(float) * (num_images * num_components)),
         "Unable to malloc d_data", ERR_CUDA_MALLOC);
 
@@ -154,9 +158,10 @@ void PCARoutine::post_process() {
     uint32_t m = width * height;
     uint32_t p = num_components;
 
-    dim3 block2D (((m + TRANSPOSE_TILE - 1) / TRANSPOSE_TILE), ((p + TRANSPOSE_TILE - 1) / TRANSPOSE_TILE));
-    dim3 grid2D (TRANSPOSE_BLOCK_DIM_X, TRANSPOSE_BLOCK_DIM_Y);
+    dim3 block2D (((p + TRANSPOSE_TILE - 1) / TRANSPOSE_TILE), ((m + TRANSPOSE_TILE - 1) / TRANSPOSE_TILE));
+    dim3 grid2D (MATMUL_BLOCK_DIM_X, MATMUL_BLOCK_DIM_Y);
 
+    // U = A * V
     matmul<<<block2D, grid2D>>> (m, n, p, d_data, d_eigenvectors, d_real_eigenvectors);
     cudaDeviceSynchronize();
 
@@ -164,16 +169,27 @@ void PCARoutine::post_process() {
     matmul_checker(m, n, p, d_data, d_eigenvectors, d_real_eigenvectors);
     #endif
 
-    transpose_kernel<<<block2D, grid2D>>> (p, m, d_real_eigenvectors, d_real_eigenvectors_transpose);
+    dim3 block2D_3 (m, p);
+    dim3 grid2D_3 (THREADS_PER_BLOCK, 1);
+
+    // Normalize squared sum
+    norm_squaredsum<<<block2D_3, grid2D_3>>> (m, p, d_real_eigenvectors, d_real_eigenvectors_norm);
+    cudaDeviceSynchronize();
+
+    // Transpose for projection
+    transpose_kernel<<<block2D, grid2D>>> (p, m, d_real_eigenvectors_norm, d_real_eigenvectors_transpose);
+    cudaDeviceSynchronize();
 
     #ifdef EN_CHECKER
     transpose_checker(p, m, d_real_eigenvectors, d_real_eigenvectors_transpose);
     #endif
 
-    dim3 block2D_2 (((m + TRANSPOSE_TILE - 1) / TRANSPOSE_TILE), ((p + TRANSPOSE_TILE - 1) / TRANSPOSE_TILE));
+    dim3 block2D_2 (((n + TRANSPOSE_TILE - 1) / TRANSPOSE_TILE), ((p + TRANSPOSE_TILE - 1) / TRANSPOSE_TILE));
     dim3 grid2D_2 (TRANSPOSE_BLOCK_DIM_X, TRANSPOSE_BLOCK_DIM_Y);
 
+    // Projection: Gamma = U_T * A
     matmul<<<block2D_2, grid2D_2>>> (p, m, n, d_real_eigenvectors_transpose, d_data, d_results);
+    cudaDeviceSynchronize();
 
     #ifdef EN_CHECKER
     matmul_checker(p, m, n, d_real_eigenvectors_transpose, d_data, d_results);

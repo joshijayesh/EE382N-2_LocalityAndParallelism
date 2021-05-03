@@ -36,6 +36,7 @@ class PCARoutine {
         float *d_data_cov;
         float *d_eigenvectors;
         float *d_real_eigenvectors;
+        float *d_real_eigenvectors_norm;
         float *d_real_eigenvectors_transpose;
         float *d_results;
         void **d_params;

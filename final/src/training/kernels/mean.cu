@@ -55,3 +55,54 @@ void mean_reduce(const DeviceConstants *pca_dev_params) {
     }
 }
 
+__global__
+void norm_squaredsum(uint32_t n, uint32_t m, float *in, float *out) {
+    float sum = 0.0;
+    uint32_t vector_num = blockIdx.y;
+
+    uint16_t wid = threadIdx.x >> THREADS_PER_WARP_LOG;
+    uint16_t lane = threadIdx.x & THREADS_PER_WARP_MASK;
+
+    __shared__ float shared_sum[WARPS_PER_BLOCK];
+
+    for(uint32_t offset = threadIdx.x; offset < m; offset += THREADS_PER_BLOCK) {
+        uint32_t element = offset * m + vector_num;
+        sum += in[element] * in[element];
+    }
+
+    for(int offset = 16; offset > 0; offset /= 2) {
+        sum += __shfl_down_sync(FULL_WARP_MASK, sum, offset);
+    }
+
+    __syncthreads();
+
+    if(lane == 0) {
+        shared_sum[wid] = sum;
+    }
+
+    __syncthreads();
+
+    if(wid == 0 && threadIdx.x < WARPS_PER_BLOCK) {
+        sum = shared_sum[threadIdx.x];
+        for(int offset = WARPS_PER_BLOCK / 2; offset > 0; offset /= 2) {
+            sum += __shfl_down_sync(FULL_WARP_MASK, sum, offset);
+        }
+
+        if(threadIdx.x == 0) {
+            shared_sum[0] = sqrt(sum);
+        }
+    }
+
+    __syncthreads();
+
+    if(lane == 0) {
+        sum = shared_sum[0];
+    }
+
+    sum = __shfl_sync(FULL_WARP_MASK, sum, 0);
+    for(uint32_t offset = threadIdx.x; offset < m; offset += THREADS_PER_BLOCK) {
+        uint32_t element = offset * m + vector_num;
+        out[element] = in[element] / sum;
+    }
+}
+
