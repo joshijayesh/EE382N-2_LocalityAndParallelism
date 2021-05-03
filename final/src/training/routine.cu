@@ -174,6 +174,10 @@ void PCARoutine::post_process() {
     dim3 grid2D_2 (TRANSPOSE_BLOCK_DIM_X, TRANSPOSE_BLOCK_DIM_Y);
 
     matmul<<<block2D_2, grid2D_2>>> (p, m, n, d_real_eigenvectors_transpose, d_data, d_results);
+
+    #ifdef EN_CHECKER
+    matmul_checker(p, m, n, d_data, d_eigenvectors, d_real_eigenvectors);
+    #endif
 }
 
 PCARoutine::~PCARoutine() {
