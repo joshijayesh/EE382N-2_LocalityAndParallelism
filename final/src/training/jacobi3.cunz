@@ -1,3 +1,4 @@
+
 #include <string>
 #include <algorithm>
 #include <math.h>
@@ -120,13 +121,11 @@ __global__ void maxElemalongy(float* A_s, int* k_s, int* l_s, int n){
 }
 
 
-__global__ void kernelRotate(float* A, int k0 , int l0, int n, float* s0, float* tau0 ) {
+__global__ void kernelRotate(float* A, int k , int l, int n, float* s0, float* tau0 ) {
     int idx = blockIdx.x*blockDim.x + threadIdx.x;
     if(idx >= n) 
         return;
-    // printf("%s\n","enter");
-    int k = k0;
-    int l = l0;
+
     float t; // tan 
     float Adiff = A[n*l +l] - A[n*k +k];
     float temp = A[n*k +l]; // float temp = A[k,l];
@@ -177,7 +176,7 @@ __global__ void kernelRotate(float* A, int k0 , int l0, int n, float* s0, float*
 }
 
 
-__global__ void kernelRotateP(float* p, int k0 , int l0, int n, float* s0, float* tau0) {
+__global__ void kernelRotateP(float* p, int k , int l, int n, float* s0, float* tau0) {
 
     int idx = blockIdx.x*blockDim.x + threadIdx.x;
     if(idx >= n)
@@ -185,8 +184,6 @@ __global__ void kernelRotateP(float* p, int k0 , int l0, int n, float* s0, float
     float s = *s0;
     float tau = *tau0;
 
-    int k = k0;
-    int l = l0;
     float temp = p[n*idx + k];
     float temp2 = p[n*idx + l];
     p[n*idx + k] = temp - s*(temp2 + tau*temp);
@@ -202,17 +199,6 @@ void initialize_identity(float *I, int size){
 
     return;
 }
-
-// __global__ void initialize_l_s(int* l_s,int n){
-//     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-//     int idy = blockIdx.y * blockDim.y + threadIdx.y;
-
-//     if (idx >= n || idy >= n)
-//         return;
-
-//     l_s[idy*n + idx] = idx;
-//     return;
-// }
 
 
 __global__ void initialize_k_s(int* k_s,int n){
@@ -241,6 +227,8 @@ __global__ void initialize_A_s(float *A , float* A_s, int *l_s, int n){
 void kernelRotateFull(float *A_h, float *p_h, int n) {
     // for(int io =0; io<n*n;io++)
     //     printf("%f,",A_s_h[io]);
+
+    initialize_identity(p_h,n);
 
     printf("%s,%f\n","Tol = ",TOL);
 
@@ -305,14 +293,14 @@ void kernelRotateFull(float *A_h, float *p_h, int n) {
         int *ptr_l = &l;
 
         cudaMemcpy(ptr_Amax,&A_s[1],sizeof(float),cudaMemcpyDeviceToHost);
-        // cudaMemcpy(ptr_k,&k_s[1],sizeof(int),cudaMemcpyDeviceToHost);
-        // cudaMemcpy(ptr_l,&l_s[1],sizeof(int),cudaMemcpyDeviceToHost);
+        cudaMemcpy(ptr_k,&k_s[1],sizeof(int),cudaMemcpyDeviceToHost);
+        cudaMemcpy(ptr_l,&l_s[1],sizeof(int),cudaMemcpyDeviceToHost);
 
-        // k = *ptr_k;
-        // l = *ptr_l;
+        k = *ptr_k;
+        l = *ptr_l;
         Amax = *ptr_Amax;
         printf("Amax for iter - %d,%f\n", iter,Amax);
-        // printf("K,l = %d,%d\n",k,l);
+        printf("K,l = %d,%d\n",k,l);
 
 
         if (abs(Amax) < TOL){
@@ -370,7 +358,7 @@ int main(){
 
 
     float *A, *p;
-    int n=3;
+    int n=4;
     A = (float*)malloc(n*n*sizeof(float));
     p = (float*)malloc(n*n*sizeof(float));
 
@@ -398,7 +386,6 @@ int main(){
     A[14] = 8;
     A[15] = 7;
 
-    initialize_identity(p,n);
     //  *A_h = 3;
     // A_h[1] = 2;
     // A_h[2] = 2;
