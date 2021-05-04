@@ -30,43 +30,59 @@ void PCARoutine::load_matrix() {
 
     // Allocate the matrix on the GPU
     CUDAERR_CHECK(
-        cudaMalloc((void **) &d_data, sizeof(float) * width * height * num_images),
+        cudaMalloc((void **) &d_data, sizeof(float) * width * height * num_train_images),
         "Unable to malloc d_data", ERR_CUDA_MALLOC);
 
     CUDAERR_CHECK(
-        cudaMalloc((void **) &d_data_temp, sizeof(float) * width * height * num_images),
+        cudaMalloc((void **) &d_data_temp, sizeof(float) * width * height * num_train_images),
         "Unable to malloc d_data", ERR_CUDA_MALLOC);
 
     CUDAERR_CHECK(
-        cudaMalloc((void **) &d_data_transpose, sizeof(float) * width * height * num_images),
+        cudaMalloc((void **) &d_data_transpose, sizeof(float) * width * height * num_train_images),
         "Unable to malloc d_data", ERR_CUDA_MALLOC);
 
     // cov = (width * num images)^2 -- This is hugeee!
     CUDAERR_CHECK(
-        cudaMalloc((void **) &d_data_cov, sizeof(float) * (num_images * num_images)),
+        cudaMalloc((void **) &d_data_cov, sizeof(float) * (num_train_images * num_train_images)),
         "Unable to malloc d_data", ERR_CUDA_MALLOC);
 
     CUDAERR_CHECK(
-        cudaMalloc((void **) &d_eigenvectors, sizeof(float) * (num_images * num_images)),
+        cudaMalloc((void **) &d_eigenvectors, sizeof(float) * (num_train_images * num_train_images)),
+        "Unable to malloc d_data", ERR_CUDA_MALLOC);
+   
+     CUDAERR_CHECK(
+        cudaMalloc((void **) &d_eigenvalues, sizeof(float) * (num_images * num_images)),
         "Unable to malloc d_data", ERR_CUDA_MALLOC);
 
     CUDAERR_CHECK(
-        cudaMalloc((void **) &d_real_eigenvectors, sizeof(float) * (num_images * num_components)),
+        cudaMalloc((void **) &d_eigenvectors_sorted, sizeof(float) * (num_train_images * num_train_images)),
         "Unable to malloc d_data", ERR_CUDA_MALLOC);
 
     CUDAERR_CHECK(
-        cudaMalloc((void **) &d_real_eigenvectors_norm, sizeof(float) * (num_images * num_components)),
+        cudaMalloc((void **) &d_real_eigenvectors, sizeof(float) * ( width * height * num_components)),
         "Unable to malloc d_data", ERR_CUDA_MALLOC);
 
     CUDAERR_CHECK(
-        cudaMalloc((void **) &d_real_eigenvectors_transpose, sizeof(float) * (num_images * num_components)),
+        cudaMalloc((void **) &d_real_eigenvectors_norm, sizeof(float) * (width * height * num_components)),
         "Unable to malloc d_data", ERR_CUDA_MALLOC);
 
     CUDAERR_CHECK(
-        cudaMalloc((void **) &d_results, sizeof(float) * (num_images * num_components)),
+        cudaMalloc((void **) &d_real_eigenvectors_transpose, sizeof(float) * (width * height * num_components)),
         "Unable to malloc d_data", ERR_CUDA_MALLOC);
 
     CUDAERR_CHECK(
+        cudaMalloc((void **) &d_projections, sizeof(float) * (num_train_images * num_components)),
+        "Unable to malloc d_data", ERR_CUDA_MALLOC);
+    
+   CUDAERR_CHECK(
+        cudaMalloc((void **) &d_data_test, sizeof(float) * width * height * num_test_images),
+        "Unable to malloc d_data", ERR_CUDA_MALLOC); 
+    
+   CUDAERR_CHECK(      
+        cudaMalloc((void **) &d_test_projections, sizeof(float) *  num_test_images * num_components),
+        "Unable to malloc d_data", ERR_CUDA_MALLOC);
+   
+   CUDAERR_CHECK(
         cudaMalloc((void **) &d_params, sizeof(DeviceConstants)),
         "Unable to malloc d_params", ERR_CUDA_MALLOC);
     
@@ -85,9 +101,10 @@ void PCARoutine::load_matrix() {
     DeviceConstants params;
     params.width = width;
     params.height = height;
-    params.n = num_images;
+    params.n_train = num_train_images;
+    params.n_test = num_test_images;
     params.m = height * width;
-    params.num_images = num_images;
+    params.n = num_train_images;
     params.data = d_data_temp;
     params.A = d_data;
     params.A_t = d_data_transpose;
@@ -204,10 +221,17 @@ PCARoutine::~PCARoutine() {
         cudaFree(d_data_transpose);
         cudaFree(d_data_cov);
         cudaFree(d_eigenvectors);
-        cudaFree(d_real_eigenvectors);
+        cudaFree(d_eigenvectors_sorted);
+	cudaFree(d_eigenvalues);
+	cudaFree(d_real_eigenvectors);
+	cudaFree(d_real_eigenvectors_norm);
         cudaFree(d_real_eigenvectors_transpose);
         cudaFree(d_params);
-        cudaFree(d_results);
-    }
+        cudaFree(d_projections);
+	cudaFree(d_projections);
+	cudaFree(d_data_test);
+	cudaFree(d_test_projections);
+   	
+     }
 }
 
