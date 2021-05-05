@@ -28,25 +28,8 @@ __device__ inline int nextPow2(int n)
 }
 
 
-// __global__ void compare(float* w, int* sort_index, int n)
-
-// {
-// int idx = blockIdx.x*blockDim.x + threadIdx.x;
-
-
-// }
-
-// __global__ void merge(float* w, int* sort_index)
-
-// {
-
-
-
-// }
-
 
 __device__ void merge(float* w,float* w_copy,int* sort_index,int* sort_index_copy, int start,int n1,int n2)
-
 
 {
 
@@ -139,7 +122,6 @@ __global__ void sort_value_kernel(float* w, float* w_copy,int* sort_index,int* s
 
 {
 
-     printf("Entered sort_value_kernel\n");
 
 
 merge_sort(w, w_copy,sort_index,sort_index_copy,0,n);
@@ -157,8 +139,6 @@ int row = blockIdx.x * blockDim.x + threadIdx.x;
 
 if(row>=n) return;
 
- printf("Entered sort_vector_kernel\n");
-
 for(int i=0;i<n;i++)
 {
     v_copy[row*n+i] = v[row*n+sort_index[i]];
@@ -168,82 +148,64 @@ for(int i=0;i<n;i++)
 }
 
 
-
-
-void sort_eigenvectors(int n) {
-   
-
-int* sort_index,*sort_index_h,*sort_index_copy;
-
-float *w,*v,*w_h,*v_h,*v_copy;
-
-float *w_copy;
-
-dim3 blockDim(256,1);
-dim3 gridDim((n + blockDim.x - 1) / blockDim.x);
-
-
-w_h = (float*)malloc(n*n*sizeof(float));
-
-v_h = (float*)malloc(n*n*sizeof(int));
-
-sort_index_h = (int*)malloc(n*sizeof(int));
-
-for(int i=0;i<n;i++)
-        {
-            sort_index_h[i]=i;
-            w_h[i] = i;
-
-        }
-
-
-
-
-cudaMalloc((void **) &w, sizeof(float)*n);
-cudaMalloc((void **) &w_copy, sizeof(float)*n);
-
-cudaMalloc((void **) &v, sizeof(float) * n*n);
-cudaMalloc((void **) &v_copy, sizeof(float) * n*n);
-
-cudaMalloc((void **) &sort_index, sizeof(int) * n);
-cudaMalloc((void **) &sort_index_copy, sizeof(int) * n);
-
-size_t size = sizeof(float)* n*n;
-
-cudaMemcpy(w,w_h,sizeof(float)* n,cudaMemcpyHostToDevice);
-cudaMemcpy(v,v_h,size,cudaMemcpyHostToDevice);
-cudaMemcpy(sort_index,sort_index_h,sizeof(int)*n,cudaMemcpyHostToDevice);
-
-
-sort_value_kernel<<<1,1>>>(w,w_copy,sort_index,sort_index_copy,n);
-
-cudaDeviceSynchronize();
-
-sort_vector_kernel<<<gridDim,blockDim>>>(v,v_copy,sort_index,n);
-
-cudaDeviceSynchronize();
-
-cudaMemcpy(w_h,w,sizeof(float)* n,cudaMemcpyDeviceToHost);
-cudaMemcpy(v_h,v_copy,size,cudaMemcpyDeviceToHost);
-
-for(int i=0;i<n;i++)
+__global__ void initialize(int n, int* sort_index, float* w_1d, float* w)
 {
-    printf("%f\n",w_h[i] );
+int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+if(idx>=n) return;
+sort_index[idx] = idx;
+w_1d[idx] = w[idx*(n+1)];
+
 }
 
 
 
-    delete[] w_h;
-    delete[] v_h;
-    delete[] sort_index_h;
+void PCARoutine::sort_eigenvectors()() {
+   
+uint32_t n = num_images;
+float* v = d_eigenvectors;
+float* w = d_eigenvalues;
+
+int* sort_index,*sort_index_copy;
+
+float *w_1d;
+
+float *w_1d_copy;
+
+float *v_sorted = d_eigenvectors_sorted;
+
+
+cudaMalloc((void **) &w_1d, sizeof(float)*n);
+cudaMalloc((void **) &w_1d_copy, sizeof(float)*n);
+
+
+cudaMalloc((void **) &sort_index, sizeof(int) * n);
+cudaMalloc((void **) &sort_index_copy, sizeof(int) * n);
+
+
+dim3 blockDim(256,1);
+dim3 gridDim((n + blockDim.x - 1) / blockDim.x);
+
+initialize<<<gridDim,blockDim>>>(n,sort_index,w_1d,w);
+
+cudaDeviceSynchronize();
+
+
+sort_value_kernel<<<1,1>>>(w_1d,w_1d_copy,sort_index,sort_index_copy,n);
+
+cudaDeviceSynchronize();
+
+sort_vector_kernel<<<gridDim,blockDim>>>(v,v_sorted,sort_index,n);
+
+cudaDeviceSynchronize();
+
+
 
 
     cudaFree(sort_index);
     cudaFree(sort_index_copy);
-    cudaFree(w);
-    cudaFree(w_copy);
-    cudaFree(v);
-    cudaFree(v_copy);
+    cudaFree(w_1d);
+    cudaFree(w_1d_copy);
 
     return;
 
@@ -251,10 +213,3 @@ for(int i=0;i<n;i++)
 
 }
 
-
-
-int main(int argc,char* argv[]){
-
-    sort_eigenvectors(stoi(argv[1]));
-    return 0;
-}
