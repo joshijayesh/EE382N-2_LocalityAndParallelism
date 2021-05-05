@@ -160,56 +160,5 @@ w_1d[idx] = w[idx*(n+1)];
 
 
 
-void PCARoutine::sort_eigenvectors()() {
-   
-uint32_t n = num_images;
-float* v = d_eigenvectors;
-float* w = d_eigenvalues;
 
-int* sort_index,*sort_index_copy;
-
-float *w_1d;
-
-float *w_1d_copy;
-
-float *v_sorted = d_eigenvectors_sorted;
-
-
-cudaMalloc((void **) &w_1d, sizeof(float)*n);
-cudaMalloc((void **) &w_1d_copy, sizeof(float)*n);
-
-
-cudaMalloc((void **) &sort_index, sizeof(int) * n);
-cudaMalloc((void **) &sort_index_copy, sizeof(int) * n);
-
-
-dim3 blockDim(256,1);
-dim3 gridDim((n + blockDim.x - 1) / blockDim.x);
-
-initialize<<<gridDim,blockDim>>>(n,sort_index,w_1d,w);
-
-cudaDeviceSynchronize();
-
-
-sort_value_kernel<<<1,1>>>(w_1d,w_1d_copy,sort_index,sort_index_copy,n);
-
-cudaDeviceSynchronize();
-
-sort_vector_kernel<<<gridDim,blockDim>>>(v,v_sorted,sort_index,n);
-
-cudaDeviceSynchronize();
-
-
-
-
-    cudaFree(sort_index);
-    cudaFree(sort_index_copy);
-    cudaFree(w_1d);
-    cudaFree(w_1d_copy);
-
-    return;
-
-
-
-}
 
