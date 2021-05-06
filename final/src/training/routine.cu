@@ -1,5 +1,7 @@
 #include <vector>
 #include <iostream>
+#include <fstream>
+#include <string>
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -19,7 +21,7 @@
 // __constant__ DeviceConstants pca_dev_params;
 
 
-void PCARoutine::load_matrix() {
+void PCATraining::load_matrix() {
     int device_count;
 
     CUDAERR_CHECK(
@@ -117,7 +119,7 @@ void PCARoutine::load_matrix() {
 }
 
 // Calculates mean and subtracts from each image yielding A
-void PCARoutine::mean_image() {
+void PCATraining::mean_image() {
     // 1 warp per pixel
     uint32_t nx = (width + WARPS_PER_BLOCK - 1) / WARPS_PER_BLOCK;
     dim3 blocks2D (nx, height);
@@ -131,7 +133,7 @@ void PCARoutine::mean_image() {
     #endif
 }
 
-void PCARoutine::compute_covariance() {
+void PCATraining::compute_covariance() {
     uint32_t n = num_images;
     uint32_t m = width * height;
 
@@ -157,7 +159,7 @@ void PCARoutine::compute_covariance() {
     #endif
 }
 
-void PCARoutine::sort_eigenvectors() {
+void PCATraining::sort_eigenvectors() {
     uint32_t n = num_images;
     float* v = d_eigenvectors;
     float* w = d_eigenvalues;
@@ -195,7 +197,7 @@ void PCARoutine::sort_eigenvectors() {
 }
 
 
-void PCARoutine::post_process() {
+void PCATraining::post_process() {
     uint32_t n = num_images;
     uint32_t m = width * height;
     uint32_t p = num_components;
@@ -238,7 +240,68 @@ void PCARoutine::post_process() {
     #endif
 }
 
-PCARoutine::~PCARoutine() {
+
+void PCATraining::save_to_file(std::string out_file, std::vector<std::string> pgm_ordering) {
+    uint32_t n = num_images;
+    uint32_t m = width * height;
+    uint32_t p = num_components;
+
+    float *h_real_eigenvectors_transpose;
+    float *h_results;
+
+    h_real_eigenvectors_transpose = (float *) malloc(sizeof(float) * (p * m));
+    h_results = (float *) malloc(sizeof(float) * (p * n));
+
+    CUDAERR_CHECK(
+        cudaMemcpy(h_real_eigenvectors_transpose,
+                   d_real_eigenvectors_transpose,
+                   sizeof(float) * p * m,
+                   cudaMemcpyDeviceToHost),
+        "Unable to copy data from device!: A", ERR_CUDA_MEMCPY);
+
+    CUDAERR_CHECK(
+        cudaMemcpy(h_results,
+                   d_results,
+                   sizeof(float) * p * n,
+                   cudaMemcpyDeviceToHost),
+        "Unable to copy data from device!: A", ERR_CUDA_MEMCPY);
+
+    std::ofstream file(out_file);
+    file << "Training Results" << std::endl;
+
+    file << "PGM Ordering" << std::endl;
+    for (std::string s: pgm_ordering)
+        file << s << std::endl;
+
+    file << std::endl;
+    file << "EigenVectors" << std::endl;
+    file << p << "x" << m << std::endl;
+
+    for(int i = 0; i < p; i += 1) {
+        for(int j = 0; j < m; j += 1) {
+            file << h_real_eigenvectors_transpose[i * m + j] << " ";
+        }
+        file << std::endl;
+    }
+
+    file << std::endl;
+    file << "Weight Vectors" << std::endl;
+    file << p << "x" << n << std::endl;
+
+    for(int i = 0; i < p; i += 1) {
+        for(int j = 0; j < n; j += 1) {
+            file << h_results[i * n + j] << " ";
+        }
+        file << std::endl;
+    }
+
+    file.close();
+    free(h_real_eigenvectors_transpose);
+    free(h_results);
+}
+
+
+PCATraining::~PCATraining() {
     if (d_data) {
         std::cout << "Cleaning up~" << std::endl;
         cudaFree(d_data);

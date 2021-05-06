@@ -5,9 +5,9 @@
 
 #include "pgm/pgm.hpp"
 
-class PCARoutine {
+class PCATraining {
     public:
-        PCARoutine(std::vector<PGMData> pl, uint32_t num_components) :
+        PCATraining(std::vector<PGMData> pl, uint32_t num_components) :
             pgm_list(pl),
             width(pl.front().col),
             height(pl.front().row),
@@ -21,8 +21,9 @@ class PCARoutine {
         virtual void find_eigenvectors()=0;
         void sort_eigenvectors();
         void post_process();
+        void save_to_file(std::string, std::vector<std::string>);
 
-        virtual ~PCARoutine();
+        virtual ~PCATraining();
     protected:
         std::vector<PGMData> pgm_list;
         int width;
@@ -47,10 +48,10 @@ class PCARoutine {
         void **d_params;
 };
 
-class JacobiPCA: public PCARoutine {
+class JacobiPCA: public PCATraining {
     public:
         JacobiPCA(std::vector<PGMData> pl, uint32_t num_components) :
-            PCARoutine(pl, num_components)
+            PCATraining(pl, num_components)
         {};
 
         void find_eigenvectors();
