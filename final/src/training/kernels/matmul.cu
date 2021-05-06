@@ -13,7 +13,6 @@ void matmul(uint32_t n, uint32_t m, uint32_t p, float *A, float *B, float *C) {
     uint32_t idx_x = (blockIdx.x * MATMUL_TILE_DIM) + threadIdx.x;
     uint32_t idx_y = (blockIdx.y * MATMUL_TILE_DIM) + threadIdx.y;
 
-
     float C_temp[4] = {0.0, 0.0, 0.0, 0.0};
 
     for (uint32_t tile = 0; tile < m; tile += MATMUL_TILE_DIM) {
@@ -23,7 +22,7 @@ void matmul(uint32_t n, uint32_t m, uint32_t p, float *A, float *B, float *C) {
             else
                 Ab[threadIdx.y + j][threadIdx.x] = 0.0;
 
-            if(tile + threadIdx.y + j < m && idx_y < p)
+            if(tile + threadIdx.y + j < m && idx_x < p)
                 Bb[threadIdx.y + j][threadIdx.x] = B[(tile + threadIdx.y + j) * p + idx_x];
             else
                 Bb[threadIdx.y + j][threadIdx.x] = 0.0;

@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <driver_functions.h>
@@ -85,7 +87,7 @@ void norm_squaredsum(uint32_t n, uint32_t m, float *in, float *out) {
     if(wid == 0 && threadIdx.x < WARPS_PER_BLOCK) {
         sum = shared_sum[threadIdx.x];
         for(int offset = WARPS_PER_BLOCK / 2; offset > 0; offset /= 2) {
-            sum += __shfl_down_sync(FULL_WARP_MASK, sum, offset);
+            sum += __shfl_down_sync(0xff, sum, offset);
         }
 
         if(threadIdx.x == 0) {

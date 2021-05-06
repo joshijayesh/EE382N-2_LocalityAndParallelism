@@ -59,7 +59,7 @@ void PCARoutine::load_matrix() {
         "Unable to malloc d_data", ERR_CUDA_MALLOC);
 
     CUDAERR_CHECK(
-        cudaMalloc((void **) &d_real_eigenvectors, sizeof(float) * ( width * height * num_components)),
+        cudaMalloc((void **) &d_real_eigenvectors, sizeof(float) * (width * height * num_components)),
         "Unable to malloc d_data", ERR_CUDA_MALLOC);
 
     CUDAERR_CHECK(
@@ -122,8 +122,6 @@ void PCARoutine::mean_image() {
     uint32_t nx = (width + WARPS_PER_BLOCK - 1) / WARPS_PER_BLOCK;
     dim3 blocks2D (nx, height);
     dim3 grid2D (THREADS_PER_BLOCK, 1);
-
-    std::cout << "Nx = " << nx << " width = " << width << " height = " << height << " TPB = " << THREADS_PER_BLOCK << std::endl;
 
     mean_reduce<<<blocks2D, grid2D>>> (width, width * height, num_images, d_data_temp, d_data);
     cudaDeviceSynchronize();
@@ -206,11 +204,11 @@ void PCARoutine::post_process() {
     dim3 grid2D (MATMUL_BLOCK_DIM_X, MATMUL_BLOCK_DIM_Y);
 
     // U = A * V
-    matmul<<<block2D, grid2D>>> (m, n, p, d_data, d_eigenvectors, d_real_eigenvectors);
+    matmul<<<block2D, grid2D>>> (m, n, p, d_data, d_eigenvectors_sorted, d_real_eigenvectors);
     cudaDeviceSynchronize();
 
     #ifdef EN_CHECKER
-    matmul_checker(m, n, p, d_data, d_eigenvectors, d_real_eigenvectors);
+    matmul_checker(m, n, p, d_data, d_eigenvectors_sorted, d_real_eigenvectors);
     #endif
 
     dim3 block2D_3 (m, p);
@@ -225,7 +223,7 @@ void PCARoutine::post_process() {
     cudaDeviceSynchronize();
 
     #ifdef EN_CHECKER
-    transpose_checker(p, m, d_real_eigenvectors, d_real_eigenvectors_transpose);
+    transpose_checker(p, m, d_real_eigenvectors_norm, d_real_eigenvectors_transpose);
     #endif
 
     dim3 block2D_2 (((n + TRANSPOSE_TILE - 1) / TRANSPOSE_TILE), ((p + TRANSPOSE_TILE - 1) / TRANSPOSE_TILE));

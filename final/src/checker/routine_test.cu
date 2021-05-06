@@ -134,6 +134,7 @@ void matmul_checker(uint32_t n, uint32_t m, uint32_t p, float *d_A, float *d_B, 
             if(C[j * p + i] != sum) {
                 std::cout << "MATMUL failed i=" << i << ",j=" << j << "! Expected " << sum << " Actual " << C[j * p + i] << std::endl;
                 fail = true;
+                CERR_CHECK(!fail, "Matmul checker failed!!", ERR_CHECKER_FAILED);
             }
 
         }
