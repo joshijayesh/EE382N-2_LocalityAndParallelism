@@ -22,10 +22,12 @@ void launch_training(std::vector<PGMData> pgm_list, uint32_t num_components) {
                                      num_components > pgm_list.size() ? pgm_list.size() : num_components);
     routine->load_matrix();
     routine->mean_image();
+    /*
     routine->compute_covariance();
     routine->find_eigenvectors();
-    routine->pca_reduction();
+    routine->sort_eigenvectors();
     routine->post_process();
+    */
     delete routine;
 }
 

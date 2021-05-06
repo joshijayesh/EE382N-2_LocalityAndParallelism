@@ -148,7 +148,7 @@ for(int i=0;i<n;i++)
 }
 
 
-__global__ void initialize(int n, int* sort_index, float* w_1d, float* w)
+__global__ void sort_initialize(int n, int* sort_index, float* w_1d, float* w)
 {
 int idx = blockIdx.x * blockDim.x + threadIdx.x;
 

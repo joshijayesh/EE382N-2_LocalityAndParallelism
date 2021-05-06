@@ -6,16 +6,16 @@
 
 
 __global__
-void mean_reduce(const DeviceConstants *pca_dev_params) {
+void mean_reduce(uint32_t width, uint32_t image_size, uint32_t num_images, float* data, float* A) {
     uint16_t wid = threadIdx.x >> THREADS_PER_WARP_LOG;
     uint16_t lane = threadIdx.x & THREADS_PER_WARP_MASK;
     uint32_t idx_x = ((blockIdx.x * WARPS_PER_BLOCK) + wid);
 
     // 1 warp per pixel
-    if(idx_x < pca_dev_params->width) {
-        uint32_t pixel = (blockIdx.y * pca_dev_params->width) + idx_x;
-        uint32_t stride = pca_dev_params->image_size;
-        float *img_ptr = pca_dev_params->data + pixel + (lane * stride);
+    if(idx_x < width) {
+        uint32_t pixel = (blockIdx.y * width) + idx_x;
+        uint32_t stride = image_size;
+        float *img_ptr = data + pixel + (lane * stride);
 
         uint16_t img_num = lane;
         float sum = 0.0;
@@ -23,7 +23,7 @@ void mean_reduce(const DeviceConstants *pca_dev_params) {
         
         // Noted this is a bit inefficient if num_images < 32
         // But aint noone runing actual training with that little training set
-        while(img_num < pca_dev_params->num_images) {
+        while(img_num < num_images) {
             sum += *img_ptr;
             img_ptr += (stride * THREADS_PER_WARP);
             img_num += THREADS_PER_WARP;
@@ -34,19 +34,19 @@ void mean_reduce(const DeviceConstants *pca_dev_params) {
         }
 
         if(lane == 0) {
-            sum = sum / pca_dev_params->num_images;
+            sum = sum / num_images;
         }
 
         float mean = __shfl_sync(FULL_WARP_MASK, sum, 0);
 
         img_num = lane;
-        img_ptr = pca_dev_params->data + pixel + (lane * stride);
+        img_ptr = data + pixel + (lane * stride);
 
-        uint32_t A_pixel = ((blockIdx.y * pca_dev_params->width) + idx_x) * pca_dev_params->num_images;
+        uint32_t A_pixel = ((blockIdx.y * width) + idx_x) * num_images;
         uint32_t A_stride = 1;
-        float *A_ptr = pca_dev_params->A + A_pixel + (lane * A_stride);
+        float *A_ptr = A + A_pixel + (lane * A_stride);
 
-        while(img_num < pca_dev_params->num_images) {
+        while(img_num < num_images) {
             *A_ptr = *img_ptr - mean;
             img_ptr += (stride * THREADS_PER_WARP);
             A_ptr += (A_stride * THREADS_PER_WARP);

@@ -19,7 +19,7 @@ class PCARoutine {
         void mean_image();
         void compute_covariance();
         virtual void find_eigenvectors()=0;
-        void pca_reduction();
+        void sort_eigenvectors();
         void post_process();
 
         virtual ~PCARoutine();
@@ -42,9 +42,8 @@ class PCARoutine {
 
         float *d_real_eigenvectors_norm;
         float *d_real_eigenvectors_transpose;
-        float *d_projections;
-        float *d_data_test;
-        float *d_test_projections;
+        float *d_results;
+
         void **d_params;
 };
 
