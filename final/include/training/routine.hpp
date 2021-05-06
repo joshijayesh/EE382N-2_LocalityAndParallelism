@@ -35,10 +35,16 @@ class PCARoutine {
         float *d_data_transpose;
         float *d_data_cov;
         float *d_eigenvectors;
+        float *d_eigenvalues;
+        float *d_eigenvectors_sorted;
+
         float *d_real_eigenvectors;
+
         float *d_real_eigenvectors_norm;
         float *d_real_eigenvectors_transpose;
-        float *d_results;
+        float *d_projections;
+        float *d_data_test;
+        float *d_test_projections;
         void **d_params;
 };
 
