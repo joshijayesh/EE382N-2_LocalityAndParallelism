@@ -279,7 +279,7 @@ void PCATraining::save_to_file(std::string out_file, std::vector<std::string> pg
 
     for(int i = 0; i < p; i += 1) {
         for(int j = 0; j < m; j += 1) {
-            file << h_real_eigenvectors_transpose[i * m + j] << " ";
+            file.write(reinterpret_cast<const char *> (&h_real_eigenvectors_transpose[i * m + j]), sizeof(float));
         }
         file << std::endl;
     }
@@ -290,7 +290,7 @@ void PCATraining::save_to_file(std::string out_file, std::vector<std::string> pg
 
     for(int i = 0; i < p; i += 1) {
         for(int j = 0; j < n; j += 1) {
-            file << h_results[i * n + j] << " ";
+            file.write(reinterpret_cast<const char *> (&h_results[i * n + j]), sizeof(float));
         }
         file << std::endl;
     }
