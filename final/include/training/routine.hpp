@@ -33,6 +33,7 @@ class PCATraining {
 
         float *d_data_temp;
         float *d_data;
+        float *d_data_mean;
         float *d_data_transpose;
         float *d_data_cov;
         float *d_eigenvectors;

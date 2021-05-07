@@ -6,6 +6,7 @@
 #include <driver_functions.h>
 
 #include "commons.hpp"
+#include "commons.cuh"
 #include "training/routine.hpp"
 #include "training/routine.cuh"
 

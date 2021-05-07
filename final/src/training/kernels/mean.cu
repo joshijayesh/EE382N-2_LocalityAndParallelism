@@ -5,10 +5,11 @@
 #include <driver_functions.h>
 
 #include "training/routine.cuh"
+#include "commons.cuh"
 
 
 __global__
-void mean_reduce(uint32_t width, uint32_t image_size, uint32_t num_images, float* data, float* A) {
+void mean_reduce(uint32_t width, uint32_t image_size, uint32_t num_images, float* data, float* A, float* mean_out) {
     uint16_t wid = threadIdx.x >> THREADS_PER_WARP_LOG;
     uint16_t lane = threadIdx.x & THREADS_PER_WARP_MASK;
     uint32_t idx_x = ((blockIdx.x * WARPS_PER_BLOCK) + wid);
@@ -40,6 +41,10 @@ void mean_reduce(uint32_t width, uint32_t image_size, uint32_t num_images, float
         }
 
         float mean = __shfl_sync(FULL_WARP_MASK, sum, 0);
+
+        if(lane == 0) {
+            mean_out[pixel] = mean;
+        }
 
         img_num = lane;
         img_ptr = data + pixel + (lane * stride);

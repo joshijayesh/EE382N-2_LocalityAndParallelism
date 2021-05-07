@@ -8,9 +8,10 @@
 #include <driver_functions.h>
 
 #include "commons.hpp"
+#include "commons.cuh"
 #include "pgm/pgm.hpp"
-#include "training/routine.hpp"
 
+#include "training/routine.hpp"
 #include "training/routine.cuh"
 #include "training/kernels.cuh"
 
@@ -33,6 +34,10 @@ void PCATraining::load_matrix() {
     // Allocate the matrix on the GPU
     CUDAERR_CHECK(
         cudaMalloc((void **) &d_data, sizeof(float) * width * height * num_images),
+        "Unable to malloc d_data", ERR_CUDA_MALLOC);
+
+    CUDAERR_CHECK(
+        cudaMalloc((void **) &d_data_mean, sizeof(float) * width * height),
         "Unable to malloc d_data", ERR_CUDA_MALLOC);
 
     CUDAERR_CHECK(
@@ -91,7 +96,7 @@ void PCATraining::load_matrix() {
             "Unable to copy matrices to device!", ERR_CUDA_MEMCPY);
     }
 
-    // Allocate params
+    // Allocate params -- this is unused
     DeviceConstants params;
     params.width = width;
     params.height = height;
@@ -125,7 +130,7 @@ void PCATraining::mean_image() {
     dim3 blocks2D (nx, height);
     dim3 grid2D (THREADS_PER_BLOCK, 1);
 
-    mean_reduce<<<blocks2D, grid2D>>> (width, width * height, num_images, d_data_temp, d_data);
+    mean_reduce<<<blocks2D, grid2D>>> (width, width * height, num_images, d_data_temp, d_data, d_data_mean);
     cudaDeviceSynchronize();
 
     #ifdef EN_CHECKER
@@ -248,9 +253,11 @@ void PCATraining::save_to_file(std::string out_file, std::vector<std::string> pg
 
     float *h_real_eigenvectors_transpose;
     float *h_results;
+    float *h_mean;
 
     h_real_eigenvectors_transpose = (float *) malloc(sizeof(float) * (p * m));
     h_results = (float *) malloc(sizeof(float) * (p * n));
+    h_mean = (float *) malloc(sizeof(float) * (width * height));
 
     CUDAERR_CHECK(
         cudaMemcpy(h_real_eigenvectors_transpose,
@@ -266,12 +273,34 @@ void PCATraining::save_to_file(std::string out_file, std::vector<std::string> pg
                    cudaMemcpyDeviceToHost),
         "Unable to copy data from device!: A", ERR_CUDA_MEMCPY);
 
+    CUDAERR_CHECK(
+        cudaMemcpy(h_mean,
+                   d_data_mean,
+                   sizeof(float) * width * height,
+                   cudaMemcpyDeviceToHost),
+        "Unable to copy data from device!: A", ERR_CUDA_MEMCPY);
+
     std::ofstream file(out_file);
     file << "Training Results" << std::endl;
 
     file << "PGM Ordering" << std::endl;
     for (std::string s: pgm_ordering)
         file << s << std::endl;
+
+    file << std::endl;
+    file << "Mean Image" << std::endl;
+    file << height << "x" << width << std::endl;
+
+    for(int i = 0; i < 5; i += 1) {
+        std::cout << h_mean[i] << " " << std::endl;
+    }
+
+    for(int i = 0; i < height; i += 1) {
+        for(int j = 0; j < width; j += 1) {
+            file.write(reinterpret_cast<const char *> (&h_mean[i * width + j]), sizeof(float));
+        }
+        file << std::endl;
+    }
 
     file << std::endl;
     file << "EigenVectors" << std::endl;
@@ -298,6 +327,7 @@ void PCATraining::save_to_file(std::string out_file, std::vector<std::string> pg
     file.close();
     free(h_real_eigenvectors_transpose);
     free(h_results);
+    free(h_mean);
 }
 
 
@@ -305,6 +335,7 @@ PCATraining::~PCATraining() {
     if (d_data) {
         std::cout << "Cleaning up~" << std::endl;
         cudaFree(d_data);
+        cudaFree(d_data_mean);
         cudaFree(d_data_temp);
         cudaFree(d_data_transpose);
         cudaFree(d_data_cov);

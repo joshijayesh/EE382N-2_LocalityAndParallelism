@@ -5,7 +5,7 @@
 #include "training/routine.cuh"
 
 __global__
-void mean_reduce(uint32_t width, uint32_t image_size, uint32_t num_images, float* data, float* A);
+void mean_reduce(uint32_t width, uint32_t image_size, uint32_t num_images, float* data, float* A, float* mean_data);
 
 __global__
 void norm_squaredsum(uint32_t n, uint32_t m, float *in, float *out);
