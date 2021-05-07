@@ -45,6 +45,7 @@ class PCATest {
         float *d_train_ev;
         float *d_train_wv;
         float *d_data;
+        float *d_results;
         float *d_data_temp;
 };
 

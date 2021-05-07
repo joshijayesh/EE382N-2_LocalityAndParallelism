@@ -291,10 +291,6 @@ void PCATraining::save_to_file(std::string out_file, std::vector<std::string> pg
     file << "Mean Image" << std::endl;
     file << height << "x" << width << std::endl;
 
-    for(int i = 0; i < 5; i += 1) {
-        std::cout << h_mean[i] << " " << std::endl;
-    }
-
     for(int i = 0; i < height; i += 1) {
         for(int j = 0; j < width; j += 1) {
             file.write(reinterpret_cast<const char *> (&h_mean[i * width + j]), sizeof(float));

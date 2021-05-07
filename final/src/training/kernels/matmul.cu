@@ -2,6 +2,7 @@
 #include <cuda_runtime.h>
 #include <driver_functions.h>
 
+#include "commons.cuh"
 #include "training/routine.cuh"
 
 

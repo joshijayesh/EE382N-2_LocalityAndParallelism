@@ -13,6 +13,7 @@
 
 #include "test/test_routine.hpp"
 #include "test/kernels.cuh"
+#include "training/kernels.cuh"
 
 #include "checker/routine_test.cuh"
 
@@ -43,6 +44,7 @@ void PCATest::load_matrix(PCATextConv text_conv) {
     std::cout << "Num Images: " << num_images << std::endl;
 
     load_target(text_conv.mean, d_mean);
+    num_components = text_conv.ev.n < num_components ? text_conv.ev.n : num_components;
     load_target(text_conv.ev, d_train_ev);
     load_target(text_conv.wv, d_train_wv);
 
@@ -52,6 +54,10 @@ void PCATest::load_matrix(PCATextConv text_conv) {
 
     CUDAERR_CHECK(
         cudaMalloc((void **) &d_data, sizeof(float) * width * height * num_images),
+        "Unable to malloc d_data", ERR_CUDA_MALLOC);
+
+    CUDAERR_CHECK(
+        cudaMalloc((void **) &d_results, sizeof(float) * num_components * num_images),
         "Unable to malloc d_data", ERR_CUDA_MALLOC);
 
 
@@ -79,6 +85,21 @@ void PCATest::mean_image() {
     #ifdef EN_CHECKER
     mean_sub_checker(width, height, pgm_list, d_data, d_mean);
     #endif
+
+    uint32_t n = num_images;
+    uint32_t m = width * height;
+    uint32_t p = num_components;
+
+    dim3 block2D_2 (((n + MATMUL_TILE_DIM - 1) / MATMUL_TILE_DIM), ((p + MATMUL_TILE_DIM - 1) / MATMUL_TILE_DIM));
+    dim3 grid2D_2 (MATMUL_BLOCK_DIM_X, MATMUL_BLOCK_DIM_Y);
+
+    // Projection: Gamma = U_T * A
+    matmul<<<block2D_2, grid2D_2>>> (p, m, n, d_train_ev, d_data, d_results);
+    cudaDeviceSynchronize();
+
+    #ifdef EN_CHECKER
+    matmul_checker(p, m, n, d_train_ev, d_data, d_results);
+    #endif
 }
 
 void PCATest::find_euclidian() {
@@ -100,6 +121,7 @@ PCATest::~PCATest() {
         cudaFree(d_train_ev);
         cudaFree(d_train_wv);
         cudaFree(d_data);
+        cudaFree(d_results);
         cudaFree(d_data_temp);
     }
 }
