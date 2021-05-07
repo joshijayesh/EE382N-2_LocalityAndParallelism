@@ -22,7 +22,22 @@ Runtime
 
 Currently supports these command line arguments:
 
+## TRAIN
+
 * -s {BASE DIRECTORY OF DATABASE}: program will recursively parse through the directory for all .pgm files
-* -n {MAX NUM TO SEARCH}: used to put an upper limit on number of images to read in (for test purposes)
+* -d {OUTPUT FILE}: file to save results onto, to be used by test
+* -k {NUM COMPONENTS}: number of components to save off to file (default = max)
+* -t train: Selects the current run as training phase
+* -m {TRAIN TEST SPLIT}: Percentage for train-test split. I.e. -m 60 => 60% training
+* -h/--help: Show help message
+
+## TEST
+
+* -s {BASE DIRECTORY OF DATABASE}: program will recursively parse through the directory for all .pgm files
+* -d {OUTPUT FILE}: file to save results onto, to be used by test
+* -I {INPUT FILE}: output file generated from training phase
+* -k {NUM COMPONENTS}: number of components to use for testing (default = max, but set to training -k if -k specified during training)
+* -t test: Selects the current run as test phase
+* -m {TRAIN TEST SPLIT}: Percentage for train-test split. I.e. -m 60 => 60% training // Should be the same as what you ran for training!
 * -h/--help: Show help message
 
