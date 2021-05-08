@@ -11,16 +11,7 @@
 #include <cuda_runtime.h>
 #include <driver_functions.h>
 
-#define THREADS_PER_WARP 32
-#define THREADS_PER_WARP_MASK 0x1f
-#define THREADS_PER_WARP_LOG 5
-#define THREADS_PER_BLOCK 256
-#define WARPS_PER_BLOCK 8
-
-#define FULL_WARP_MASK 0xFFFFFFFF
-
-
-
+#include "commons.cuh"
 
 __global__ void nearest_vector(int num_test_images, int num_train_images, int num_components, int num_train_per_person, float *train_projections, float *test_projections,int *predictions)
 {
@@ -87,7 +78,7 @@ if(idx_x<num_test_images)
             if(min_dst<temp1) min_idx = temp3;
         }
 
-        int prediction = __shfl_sync(mask, min_idx, 0);
+        int prediction = __shfl_sync(FULL_WARP_MASK, min_idx, 0);
 
         int *prediction_ptr = predictions + idx_x;
 
@@ -100,6 +91,7 @@ if(idx_x<num_test_images)
 }
 
 
+/*
 void prediction(int num_components,int num_train_per_person,int num_train_images, int num_test_images)
 {
     float *train_projections_h, *train_projections, *test_projections_h, *test_projections;
@@ -185,3 +177,4 @@ return 0;
 
 
 
+*/

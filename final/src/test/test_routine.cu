@@ -47,6 +47,7 @@ void PCATest::load_matrix(PCATextConv text_conv) {
     num_components = text_conv.ev.n < num_components ? text_conv.ev.n : num_components;
     load_target(text_conv.ev, d_train_ev);
     load_target(text_conv.wv, d_train_wv);
+    num_train_images = text_conv.wv.m;
 
     CUDAERR_CHECK(
         cudaMalloc((void **) &d_data_temp, sizeof(float) * width * height * num_images),
@@ -58,6 +59,10 @@ void PCATest::load_matrix(PCATextConv text_conv) {
 
     CUDAERR_CHECK(
         cudaMalloc((void **) &d_results, sizeof(float) * num_components * num_images),
+        "Unable to malloc d_data", ERR_CUDA_MALLOC);
+
+    CUDAERR_CHECK(
+        cudaMalloc((void **) &d_predictions, sizeof(uint32_t) * num_images),
         "Unable to malloc d_data", ERR_CUDA_MALLOC);
 
 
@@ -103,7 +108,14 @@ void PCATest::mean_image() {
 }
 
 void PCATest::find_euclidian() {
+    uint32_t blocks_x = (num_images + WARPS_PER_BLOCK - 1) / WARPS_PER_BLOCK;
 
+    dim3 blockDim(THREADS_PER_BLOCK,1) ;
+    dim3 gridDim(blocks_x,1);
+
+    nearest_vector<<<gridDim,blockDim>>>(num_images, num_train_images, num_components, num_train_per_person,
+                                         d_train_wv, d_results, d_predictions);
+    cudaDeviceSynchronize();
 }
 
 void PCATest::find_confidence() {
@@ -123,6 +135,7 @@ PCATest::~PCATest() {
         cudaFree(d_data);
         cudaFree(d_results);
         cudaFree(d_data_temp);
+        cudaFree(d_predictions);
     }
 }
 

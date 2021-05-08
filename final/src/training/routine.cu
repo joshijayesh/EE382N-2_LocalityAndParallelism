@@ -246,7 +246,7 @@ void PCATraining::post_process() {
 }
 
 
-void PCATraining::save_to_file(std::string out_file, std::vector<std::string> pgm_ordering) {
+void PCATraining::save_to_file(std::string out_file) {
     uint32_t n = num_images;
     uint32_t m = width * height;
     uint32_t p = num_components;
@@ -283,11 +283,6 @@ void PCATraining::save_to_file(std::string out_file, std::vector<std::string> pg
     std::ofstream file(out_file);
     file << "Training Results" << std::endl;
 
-    file << "PGM Ordering" << std::endl;
-    for (std::string s: pgm_ordering)
-        file << s << std::endl;
-
-    file << std::endl;
     file << "Mean Image" << std::endl;
     file << height << "x" << width << std::endl;
 

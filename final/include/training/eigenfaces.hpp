@@ -7,7 +7,7 @@
 #include "pgm/pgm.hpp"
 
 
-void launch_training(std::vector<PGMData>, std::vector<std::string>, uint32_t, std::string);
+void launch_training(std::vector<PGMData>, uint32_t, std::string);
 
 #endif //__TRAINING_EIGENFACES_HPP_
 

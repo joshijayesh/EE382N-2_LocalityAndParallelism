@@ -21,7 +21,7 @@ class PCATraining {
         virtual void find_eigenvectors()=0;
         void sort_eigenvectors();
         void post_process();
-        void save_to_file(std::string, std::vector<std::string>);
+        void save_to_file(std::string);
 
         virtual ~PCATraining();
     protected:

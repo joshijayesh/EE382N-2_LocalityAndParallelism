@@ -12,6 +12,11 @@
 #include "test/test_pca.hpp"
 
 
+Person make_person(std::string path, uint32_t num) {
+    Person m_p = {path, num};
+    return m_p;
+}
+
 uint32_t cnt_pgms(std::string src) {
     uint32_t cnt = 0;
     struct dirent *entry;
@@ -35,7 +40,7 @@ uint32_t cnt_pgms(std::string src) {
 }
 
 
-bool parse(std::string src, struct stat s, std::vector<PGMData> &pgm_list, std::vector<std::string> &pgm_ordering,
+bool parse(std::string src, struct stat s, std::vector<PGMData> &pgm_list, std::vector<Person> &pgm_ordering,
            float test_train_split, std::string target) {
     CERR_CHECK(s.st_mode & (S_IFREG | S_IFDIR), "Unknown file " + src, ERR_FAILED_OPEN_FILE);
 
@@ -49,6 +54,7 @@ bool parse(std::string src, struct stat s, std::vector<PGMData> &pgm_list, std::
 
         uint32_t cnt = 0;
         uint32_t total_pgms = cnt_pgms(src);
+        uint32_t num_train = 0;
 
         // std::cout << src << " cnt = " << total_pgms << std::endl;
 
@@ -60,12 +66,15 @@ bool parse(std::string src, struct stat s, std::vector<PGMData> &pgm_list, std::
             
             if(target == "train") {
                 parse(name, s_new, pgm_list, pgm_ordering, test_train_split, target);
+                num_train += 1;
 
                 if(total_pgms != 0 && ((float) (cnt + 1) / total_pgms) >= test_train_split)
                     break;
             } else {
                 if(total_pgms == 0 || ((float) (cnt) / total_pgms) >= test_train_split)
                     parse(name, s_new, pgm_list, pgm_ordering, test_train_split, target);
+                else
+                    num_train += 1;
             }
             cnt += 1;
         }
@@ -73,7 +82,7 @@ bool parse(std::string src, struct stat s, std::vector<PGMData> &pgm_list, std::
         closedir(dp);
 
         if(total_pgms != 0)
-            pgm_ordering.push_back(src); 
+            pgm_ordering.push_back(make_person(src, num_train));
 
         return false;
     } else if (s.st_mode & S_IFREG) {
@@ -110,7 +119,7 @@ void start(std::string src, std::string dest, std::string target, std::string in
           uint32_t num_components) {
     struct stat s;
     std::vector<PGMData> pgm_list = {};
-    std::vector<std::string> pgm_ordering = {};
+    std::vector<Person> pgm_ordering = {};
 
     CERR_CHECK(stat(src.c_str(), &s) == 0, "Unable to stat " + src, ERR_FAILED_OPEN_FILE);
     CERR_CHECK(s.st_mode & S_IFDIR, "SRC needs to be a directory!", ERR_FAILED_OPEN_FILE);
@@ -122,9 +131,9 @@ void start(std::string src, std::string dest, std::string target, std::string in
     verify(pgm_list);
 
     if(target == "train")
-        launch_training(pgm_list, pgm_ordering, num_components, dest);
+        launch_training(pgm_list, num_components, dest);
     else
-        launch_test(pgm_list, input, num_components);
+        launch_test(pgm_list, pgm_ordering, input, num_components);
 }
 
 

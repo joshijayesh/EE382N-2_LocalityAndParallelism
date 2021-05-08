@@ -17,7 +17,7 @@ PCATraining* find_class(std::string target, std::vector<PGMData> pgm_list, uint3
 }
 
 // TODO: make customizable target
-void launch_training(std::vector<PGMData> pgm_list, std::vector<std::string> pgm_ordering, uint32_t num_components,
+void launch_training(std::vector<PGMData> pgm_list, uint32_t num_components,
                      std::string out_file) {
     PCATraining* routine = find_class("jacobi", pgm_list,
                                      num_components > pgm_list.size() ? pgm_list.size() : num_components);
@@ -27,7 +27,7 @@ void launch_training(std::vector<PGMData> pgm_list, std::vector<std::string> pgm
     routine->find_eigenvectors();
     routine->sort_eigenvectors();
     routine->post_process();
-    routine->save_to_file(out_file, pgm_ordering);
+    routine->save_to_file(out_file);
     delete routine;
 }
 
