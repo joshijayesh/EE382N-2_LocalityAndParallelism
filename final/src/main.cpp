@@ -12,8 +12,8 @@
 #include "test/test_pca.hpp"
 
 
-Person make_person(std::string path, uint32_t num) {
-    Person m_p = {path, num};
+Person make_person(std::string path, uint32_t num_train, uint32_t num_test) {
+    Person m_p = {path, num_train, num_test};
     return m_p;
 }
 
@@ -55,6 +55,7 @@ bool parse(std::string src, struct stat s, std::vector<PGMData> &pgm_list, std::
         uint32_t cnt = 0;
         uint32_t total_pgms = cnt_pgms(src);
         uint32_t num_train = 0;
+        uint32_t num_test = 0;
 
         // std::cout << src << " cnt = " << total_pgms << std::endl;
 
@@ -71,9 +72,10 @@ bool parse(std::string src, struct stat s, std::vector<PGMData> &pgm_list, std::
                 if(total_pgms != 0 && ((float) (cnt + 1) / total_pgms) >= test_train_split)
                     break;
             } else {
-                if(total_pgms == 0 || ((float) (cnt) / total_pgms) >= test_train_split)
+                if(total_pgms == 0 || ((float) (cnt) / total_pgms) >= test_train_split) {
                     parse(name, s_new, pgm_list, pgm_ordering, test_train_split, target);
-                else
+                    num_test += 1;
+                } else
                     num_train += 1;
             }
             cnt += 1;
@@ -82,7 +84,7 @@ bool parse(std::string src, struct stat s, std::vector<PGMData> &pgm_list, std::
         closedir(dp);
 
         if(total_pgms != 0)
-            pgm_ordering.push_back(make_person(src, num_train));
+            pgm_ordering.push_back(make_person(src, num_train, num_test));
 
         return false;
     } else if (s.st_mode & S_IFREG) {

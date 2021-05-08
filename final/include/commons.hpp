@@ -32,6 +32,7 @@ inline void CERR_CHECK(bool check, std::string error_msg, int err_num) {
 typedef struct person {
     std::string path;
     uint32_t num_train;
+    uint32_t num_test;
 } Person;
 
 #endif // __COMMON_H_
