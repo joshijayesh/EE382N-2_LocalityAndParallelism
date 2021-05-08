@@ -259,7 +259,7 @@ void JacobiPCA::find_eigenvectors() {
         kernelRotate<<<gridDim1, blockDim1>>>(A,k,l, n,s0,tau0);
         // printf("%s\n,","kernel A rotate complete" );
         kernelRotateP<<<gridDim1, blockDim1>>>(p,k,l,n,s0,tau0);
-        // cudaDeviceSynchronize();
+        cudaDeviceSynchronize();
         // printf("%s, %d\n,","iter complete - ", iter );
 
     }
