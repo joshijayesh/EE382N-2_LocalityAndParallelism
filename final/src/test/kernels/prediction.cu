@@ -82,7 +82,7 @@ if(idx_x<num_test_images)
 
         int *prediction_ptr = predictions + idx_x;
 
-        *prediction_ptr = prediction % num_train_per_person;
+        *prediction_ptr = prediction / num_train_per_person;
 }
 
 
