@@ -83,7 +83,7 @@ __global__ void kernelRotate(float* A, int k , int l, int n, float* s0, float* t
     float t; // tan 
     float Adiff = A[n*l +l] - A[n*k +k];
     float temp = A[n*k +l]; // float temp = A[k,l];
-    if(abs(temp) < abs(Adiff)*exp10f(-10))
+    if(abs(temp) < abs(Adiff)*exp10f(-36))
         t = temp/Adiff;
     else {
         float phi = Adiff/(2.0*temp);
