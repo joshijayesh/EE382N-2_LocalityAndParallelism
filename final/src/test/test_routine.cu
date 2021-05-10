@@ -127,7 +127,7 @@ void PCATest::mean_image() {
     cudaDeviceSynchronize();
 
     #ifdef EN_CHECKER
-    matmul_checker_s(p, m, n, d_train_ev, d_data, d_results);
+    matmul_checker(p, m, n, d_train_ev, d_data, d_results);
     #endif
 }
 

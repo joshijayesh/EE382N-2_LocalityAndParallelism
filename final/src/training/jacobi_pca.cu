@@ -10,7 +10,7 @@
 #include "training/routine.hpp"
 #include "training/routine.cuh"
 
-#define TOL 1.0*pow(10.0,-10.0)
+#define TOL 1.0*pow(10.0,-15.0)
 #define NoOfThreads 256
 #define NoofThreads_2 2*NoOfThreads
 

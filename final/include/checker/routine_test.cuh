@@ -14,3 +14,4 @@ void matmul_checker(uint32_t n, uint32_t m, uint32_t p, float *A, float *B, floa
 
 void matmul_checker_s(uint32_t n, uint32_t m, uint32_t p, float *A, float *B, float *C);
 
+void norm_squaredsum_checker(uint32_t m, uint32_t p, float *d_real_eigenvectors, float *d_real_eigenvectors_norm);

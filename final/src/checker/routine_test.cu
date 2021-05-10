@@ -1,6 +1,7 @@
 #include <vector>
 #include <iostream>
 #include <fstream>
+#include <math.h>
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -232,7 +233,6 @@ void matmul_checker_s(uint32_t n, uint32_t m, uint32_t p, float *d_A, float *d_B
                    cudaMemcpyDeviceToHost),
         "Unable to copy data from device! :C", ERR_CUDA_MEMCPY);
 
-    /*
     std::ofstream file("dump_out.txt");
 
     for(int j = 0; j < n; j += 1) {
@@ -253,7 +253,6 @@ void matmul_checker_s(uint32_t n, uint32_t m, uint32_t p, float *d_A, float *d_B
         file << std::endl;
     }
     file.close();
-    */
 
     free(A);
     free(B);
@@ -261,5 +260,54 @@ void matmul_checker_s(uint32_t n, uint32_t m, uint32_t p, float *d_A, float *d_B
 
     CERR_CHECK(!fail, "Matmul checker failed!!", ERR_CHECKER_FAILED);
     std::cout << "Matmul checker passed!" << std::endl;
+}
+
+void norm_squaredsum_checker(uint32_t m, uint32_t p, float *d_real_eigenvectors, float *d_real_eigenvectors_norm){
+    float *rv;
+    float *rv_norm;
+    bool fail = false;
+
+    rv = (float *) malloc(sizeof(float) * (m * p));
+    rv_norm = (float *) malloc(sizeof(float) * (m * p));
+
+    CUDAERR_CHECK(
+        cudaMemcpy(rv,
+                   d_real_eigenvectors,
+                   sizeof(float) * m * p,
+                   cudaMemcpyDeviceToHost),
+        "Unable to copy data from device!: rv", ERR_CUDA_MEMCPY);
+
+    CUDAERR_CHECK(
+        cudaMemcpy(rv_norm,
+                   d_real_eigenvectors_norm,
+                   sizeof(float) * m * p,
+                   cudaMemcpyDeviceToHost),
+        "Unable to copy data from device!: rv_norm", ERR_CUDA_MEMCPY);
+
+    for(int j = 0; j < p; j += 1 ) {
+        float sum = 0.0;
+        for(int i = 0; i < m; i += 1) {
+            uint32_t pixel = i * p + j;
+            sum += rv[pixel] * rv[pixel];
+        }
+
+        sum = sqrt(sum);
+
+        for(int i = 0; i < m; i += 1) {
+            uint32_t pixel = i * p + j;
+            
+            if(rv_norm[pixel] != (rv[pixel] / sum)) {
+                std::cout << "NORM SS FAILED i=" << i << ",j=" << j << "! Expected " << rv[pixel] / sum << " Actual " << rv_norm[pixel] << " Diff " << (rv_norm[pixel] - (rv[pixel] / sum) ) << std::endl;
+                fail = true;
+            }
+        }
+        CERR_CHECK(!fail, "NORMSS checker failed!!", ERR_CHECKER_FAILED);
+    }
+
+    free(rv);
+    free(rv_norm);
+
+    CERR_CHECK(!fail, "NORMSS checker failed!!", ERR_CHECKER_FAILED);
+    std::cout << "NORMSS checker passed!" << std::endl;
 }
 

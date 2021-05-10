@@ -148,22 +148,67 @@ void PCATraining::compute_covariance() {
     transpose_checker(n, m, d_data, d_data_transpose);
     #endif
 
+
     dim3 m_block2D (((n + MATMUL_TILE_DIM - 1) / MATMUL_TILE_DIM), ((n + MATMUL_TILE_DIM - 1) / MATMUL_TILE_DIM));
     dim3 m_grid2D (MATMUL_BLOCK_DIM_X, MATMUL_BLOCK_DIM_Y);
-
     matmul<<<m_block2D, m_grid2D>>> (n, m, n, d_data_transpose, d_data, d_data_cov);
-    identity_matrix<<<m_block2D, m_grid2D>>> (n, d_eigenvectors);
+
+    dim3 m_block2D_I (((n + 16 - 1) / 16), ((n + 16 - 1) / 16));
+    dim3 m_grid2D_I (16, 16);
+    identity_matrix<<<m_block2D_I, m_grid2D_I>>> (n, d_eigenvectors);
     cudaDeviceSynchronize();
 
     #ifdef EN_CHECKER
     matmul_checker(n, m, n, d_data_transpose, d_data, d_data_cov);
     #endif
+
+    float *h_identity;
+
+    h_identity = (float *) malloc(sizeof(float) * (n * n));
+
+    CUDAERR_CHECK(
+        cudaMemcpy(h_identity,
+                   d_eigenvectors,
+                   sizeof(float) * n * n,
+                   cudaMemcpyDeviceToHost),
+        "Unable to copy data from device!: A", ERR_CUDA_MEMCPY);
+
+    std::ofstream file("dump_identity.txt");
+    for(int i = 0; i < n; i += 1) {
+        for(int j = 0; j < n; j += 1) {
+            file << h_identity[i * n + j] << " ";
+        }
+        file << std::endl;
+    }
+
+    free(h_identity);
 }
 
 void PCATraining::sort_eigenvectors() {
     uint32_t n = num_images;
     float* v = d_eigenvectors;
     float* w = d_data_cov;
+
+    float *h_eigenvalues;
+
+    h_eigenvalues = (float *) malloc(sizeof(float) * (n * n));
+
+    CUDAERR_CHECK(
+        cudaMemcpy(h_eigenvalues,
+                   d_data_cov,
+                   sizeof(float) * n * n,
+                   cudaMemcpyDeviceToHost),
+        "Unable to copy data from device!: A", ERR_CUDA_MEMCPY);
+
+    std::ofstream file("dump_eigenvalue_matrix.txt");
+    for(int i = 0; i < n; i += 1) {
+        for(int j = 0; j < n; j += 1) {
+            file << h_eigenvalues[i * n + j] << " ";
+        }
+        file << std::endl;
+    }
+
+    free(h_eigenvalues);
 
 
     int* sort_index,*sort_index_copy;
@@ -210,31 +255,25 @@ void PCATraining::sort_eigenvectors() {
     sort_vector_kernel<<<gridDim,blockDim>>>(v,v_sorted,sort_index,n);
     cudaDeviceSynchronize();
 
-    /*
     float *A;
-    float *B;
 
-    A = (float *) malloc(sizeof(float) * (n * n));
-    B = (float *) malloc(sizeof(float) * (n * n));
+    A = (float *) malloc(sizeof(int) * (n * n));
 
     CUDAERR_CHECK(
-        cudaMemcpy(B,
-                   v_sorted,
-                   sizeof(float) * n * n,
+        cudaMemcpy(A,
+                   d_eigenvectors_sorted,
+                   sizeof(int) * n * n,
                    cudaMemcpyDeviceToHost),
         "Unable to copy data from device!: A", ERR_CUDA_MEMCPY);
 
-    std::ofstream file("dump_train_sorted_ev.txt");
+    std::ofstream file2("dump_sorted_ev.txt");
     for(int i = 0; i < n; i += 1) {
         for(int j = 0; j < n; j += 1) {
-            file << B[i * n + j] << " ";
+            file2 << A[i * n + j] << " ";
         }
-        file << std::endl;
+        file2 << std::endl;
     }
-
     free(A);
-    free(B);
-    */
 
     cudaFree(sort_index);
     cudaFree(sort_index_copy);
@@ -258,7 +297,7 @@ void PCATraining::post_process() {
     cudaDeviceSynchronize();
 
     #ifdef EN_CHECKER
-    matmul_checker(m, n, p, d_data, d_eigenvectors_sorted, d_real_eigenvectors);
+    matmul_checker_s(m, n, p, d_data, d_eigenvectors_sorted, d_real_eigenvectors);
     #endif
 
     dim3 block2D_3 (1, p);
@@ -269,6 +308,11 @@ void PCATraining::post_process() {
     cudaDeviceSynchronize();
 
     /*
+    #ifdef EN_CHECKER
+    norm_squaredsum_checker(m, p, d_real_eigenvectors, d_real_eigenvectors_norm);
+    #endif
+    */
+
     float *A;
 
     A = (float *) malloc(sizeof(float) * (m * p));
@@ -289,7 +333,6 @@ void PCATraining::post_process() {
     }
 
     free(A);
-    */
 
     // Transpose for projection
     transpose_kernel<<<block2D, grid2D>>> (p, m, d_real_eigenvectors_norm, d_real_eigenvectors_transpose);
