@@ -75,15 +75,15 @@ __global__ void maxElemalongy(float* A_s, int* k_s, int* l_s, int n){
 }
 
 
-__global__ void kernelRotate(float* A, int k , int l, int n, float* s0, float* tau0 ) {
+__global__ void kernelRotate(float* A, int k , int l, int n, double* s0, double* tau0 ) {
     int idx = blockIdx.x*blockDim.x + threadIdx.x;
     if(idx >= n) 
         return;
 
-    float t; // tan 
-    float Adiff = A[n*l +l] - A[n*k +k];
-    float temp = A[n*k +l]; // float temp = A[k,l];
-    if(abs(temp) < abs(Adiff)*exp10f(-36))
+    double t; // tan 
+    double Adiff = A[n*l +l] - A[n*k +k];
+    double temp = A[n*k +l]; // float temp = A[k,l];
+    if(abs(temp) < abs(Adiff)*exp10f(-38))
         t = temp/Adiff;
     else {
         float phi = Adiff/(2.0*temp);
@@ -91,9 +91,9 @@ __global__ void kernelRotate(float* A, int k , int l, int n, float* s0, float* t
         if(phi < 0.0) 
             t = -t;
     }
-    float c = 1.0/sqrt(t*t + 1.0); // cos
-    float s = t*c;                 // sin
-    float tau = s/(1.0 + c);
+    double c = 1.0/sqrt(t*t + 1.0); // cos
+    double s = t*c;                 // sin
+    double tau = s/(1.0 + c);
     *s0 = s;
     *tau0 = tau;
     
@@ -105,20 +105,20 @@ __global__ void kernelRotate(float* A, int k , int l, int n, float* s0, float* t
     }
 
     if (idx < k){
-        float temp = A[n*idx + k];
-        float temp2 = A[n*idx + l];
+        double temp = A[n*idx + k];
+        double temp2 = A[n*idx + l];
         A[n*idx + k] = temp - s*(temp2 + tau*temp);
         A[n*idx + l] = temp2+ s*(temp - tau*temp2);
     }
     else if(k < idx && idx <l){
-        float temp = A[n*k + idx];
-        float temp2 = A[n*idx + l];
+        double temp = A[n*k + idx];
+        double temp2 = A[n*idx + l];
         A[n*k + idx] = temp - s*(temp2 + tau*temp);
         A[n*idx + l] = temp2+ s*(temp - tau*temp2);
     }
     else if(l < idx && idx < n){
-        float temp = A[n*k + idx];
-        float temp2 = A[n*l + idx];
+        double temp = A[n*k + idx];
+        double temp2 = A[n*l + idx];
         A[n*k + idx] = temp - s*(temp2 + tau*temp);
         A[n*l + idx] = temp2+ s*(temp - tau*temp2);
     }
@@ -126,16 +126,16 @@ __global__ void kernelRotate(float* A, int k , int l, int n, float* s0, float* t
 }
 
 
-__global__ void kernelRotateP(float* p, int k , int l, int n, float* s0, float* tau0) {
+__global__ void kernelRotateP(float* p, int k , int l, int n, double* s0, double* tau0) {
 
     int idx = blockIdx.x*blockDim.x + threadIdx.x;
-    if(idx >= n)
+    if(idx >= n)double
         return;
-    float s = *s0;
-    float tau = *tau0;
+    double s = *s0;
+    double tau = *tau0;
 
-    float temp = p[n*idx + k];
-    float temp2 = p[n*idx + l];
+    double temp = p[n*idx + k];
+    double temp2 = p[n*idx + l];
     p[n*idx + k] = temp - s*(temp2 + tau*temp);
     p[n*idx + l] = temp2+ s*(temp - tau*temp2);
     return;
@@ -251,9 +251,9 @@ void JacobiPCA::find_eigenvectors() {
         // printf("%s\n,","Amax checked");
 
 
-        float s1 =0.0, tau1 =0.0;
-        float *s0 = &s1;
-        float *tau0 = &tau1;
+        double s1 =0.0, tau1 =0.0;
+        double *s0 = &s1;
+        double *tau0 = &tau1;
 
         // printf("%s\n","kernel A rotate start" );
         kernelRotate<<<gridDim1, blockDim1>>>(A,k,l, n,s0,tau0);
