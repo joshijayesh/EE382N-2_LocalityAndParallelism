@@ -57,10 +57,6 @@ void PCATraining::load_matrix() {
         cudaMalloc((void **) &d_eigenvectors, sizeof(float) * (num_images * num_images)),
         "Unable to malloc d_data", ERR_CUDA_MALLOC);
    
-     CUDAERR_CHECK(
-        cudaMalloc((void **) &d_eigenvalues, sizeof(float) * (num_images * num_images)),
-        "Unable to malloc d_data", ERR_CUDA_MALLOC);
-
     CUDAERR_CHECK(
         cudaMalloc((void **) &d_eigenvectors_sorted, sizeof(float) * (num_images * num_images)),
         "Unable to malloc d_data", ERR_CUDA_MALLOC);
@@ -167,7 +163,8 @@ void PCATraining::compute_covariance() {
 void PCATraining::sort_eigenvectors() {
     uint32_t n = num_images;
     float* v = d_eigenvectors;
-    float* w = d_eigenvalues;
+    float* w = d_data_cov;
+
 
     int* sort_index,*sort_index_copy;
 
@@ -190,8 +187,54 @@ void PCATraining::sort_eigenvectors() {
     sort_value_kernel<<<1,1>>>(w_1d,w_1d_copy,sort_index,sort_index_copy,n);
     cudaDeviceSynchronize();
 
+    /*
+    float *h_w_1d;
+
+    h_w_1d = (float *) malloc(sizeof(float) * (n));
+
+    CUDAERR_CHECK(
+        cudaMemcpy(h_w_1d,
+                   w_1d,
+                   sizeof(float) * n,
+                   cudaMemcpyDeviceToHost),
+        "Unable to copy data from device!: A", ERR_CUDA_MEMCPY);
+
+    std::ofstream file("dump_train_ev_sorted.txt");
+    for(int i = 0; i < n; i += 1) {
+        file << h_w_1d[i] << " ";
+    }
+
+    free(h_w_1d);
+    */
+
     sort_vector_kernel<<<gridDim,blockDim>>>(v,v_sorted,sort_index,n);
     cudaDeviceSynchronize();
+
+    /*
+    float *A;
+    float *B;
+
+    A = (float *) malloc(sizeof(float) * (n * n));
+    B = (float *) malloc(sizeof(float) * (n * n));
+
+    CUDAERR_CHECK(
+        cudaMemcpy(B,
+                   v_sorted,
+                   sizeof(float) * n * n,
+                   cudaMemcpyDeviceToHost),
+        "Unable to copy data from device!: A", ERR_CUDA_MEMCPY);
+
+    std::ofstream file("dump_train_sorted_ev.txt");
+    for(int i = 0; i < n; i += 1) {
+        for(int j = 0; j < n; j += 1) {
+            file << B[i * n + j] << " ";
+        }
+        file << std::endl;
+    }
+
+    free(A);
+    free(B);
+    */
 
     cudaFree(sort_index);
     cudaFree(sort_index_copy);
@@ -218,12 +261,35 @@ void PCATraining::post_process() {
     matmul_checker(m, n, p, d_data, d_eigenvectors_sorted, d_real_eigenvectors);
     #endif
 
-    dim3 block2D_3 (m, p);
+    dim3 block2D_3 (1, p);
     dim3 grid2D_3 (THREADS_PER_BLOCK, 1);
 
     // Normalize squared sum
     norm_squaredsum<<<block2D_3, grid2D_3>>> (m, p, d_real_eigenvectors, d_real_eigenvectors_norm);
     cudaDeviceSynchronize();
+
+    /*
+    float *A;
+
+    A = (float *) malloc(sizeof(float) * (m * p));
+
+    CUDAERR_CHECK(
+        cudaMemcpy(A,
+                   d_real_eigenvectors_norm,
+                   sizeof(float) * m * p,
+                   cudaMemcpyDeviceToHost),
+        "Unable to copy data from device!: A", ERR_CUDA_MEMCPY);
+
+    std::ofstream file("dump_re_norm.txt");
+    for(int i = 0; i < m; i += 1) {
+        for(int j = 0; j < p; j += 1) {
+            file << A[i * p + j] << " ";
+        }
+        file << std::endl;
+    }
+
+    free(A);
+    */
 
     // Transpose for projection
     transpose_kernel<<<block2D, grid2D>>> (p, m, d_real_eigenvectors_norm, d_real_eigenvectors_transpose);
@@ -332,7 +398,6 @@ PCATraining::~PCATraining() {
         cudaFree(d_data_cov);
         cudaFree(d_eigenvectors);
         cudaFree(d_eigenvectors_sorted);
-	    cudaFree(d_eigenvalues);
 	    cudaFree(d_real_eigenvectors);
 	    cudaFree(d_real_eigenvectors_norm);
         cudaFree(d_real_eigenvectors_transpose);

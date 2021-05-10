@@ -72,7 +72,7 @@ void norm_squaredsum(uint32_t n, uint32_t m, float *in, float *out) {
 
     __shared__ float shared_sum[WARPS_PER_BLOCK];
 
-    for(uint32_t offset = threadIdx.x; offset < m; offset += THREADS_PER_BLOCK) {
+    for(uint32_t offset = threadIdx.x; offset < n; offset += THREADS_PER_BLOCK) {
         uint32_t element = offset * m + vector_num;
         sum += in[element] * in[element];
     }
@@ -107,7 +107,7 @@ void norm_squaredsum(uint32_t n, uint32_t m, float *in, float *out) {
     }
 
     sum = __shfl_sync(FULL_WARP_MASK, sum, 0);
-    for(uint32_t offset = threadIdx.x; offset < m; offset += THREADS_PER_BLOCK) {
+    for(uint32_t offset = threadIdx.x; offset < n; offset += THREADS_PER_BLOCK) {
         uint32_t element = offset * m + vector_num;
         out[element] = in[element] / sum;
     }

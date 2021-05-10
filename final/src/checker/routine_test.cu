@@ -1,5 +1,6 @@
 #include <vector>
 #include <iostream>
+#include <fstream>
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -27,6 +28,7 @@ void mean_checker(int width, int height, std::vector<PGMData> pgm_list, float* A
                    cudaMemcpyDeviceToHost),
         "Unable to copy data from device!", ERR_CUDA_MEMCPY);
 
+    // std::ofstream file("dump_mean_reduce.txt");
     for (int i = 0; i < height; i += 1) {
         for(int j = 0; j < width; j += 1) {
             int pixel = (i * width) + j;
@@ -38,15 +40,19 @@ void mean_checker(int width, int height, std::vector<PGMData> pgm_list, float* A
 
             int k = 0;
             int row = pixel * pgm_list.size();
+            // file << pixel << ": ";
             for(PGMData img : pgm_list) {
                 float result = data[row + k++];
+                // file << result << " ";
                 if(result != img.matrix[pixel] - sum) {
                     std::cout << "Mean compare failed px " << pixel << "! Expected " << img.matrix[pixel] - sum << " Actual " << result << std::endl;
                     fail = true;
                 }
             }
+            // file << std::endl;
         }
     }
+    // file.close();
 
     CERR_CHECK(!fail, "Mean checker failed!!", ERR_CHECKER_FAILED);
     std::cout << "Mean checker passed!" << std::endl;
@@ -186,6 +192,68 @@ void matmul_checker(uint32_t n, uint32_t m, uint32_t p, float *d_A, float *d_B, 
 
         }
     }
+
+    free(A);
+    free(B);
+    free(C);
+
+    CERR_CHECK(!fail, "Matmul checker failed!!", ERR_CHECKER_FAILED);
+    std::cout << "Matmul checker passed!" << std::endl;
+}
+
+void matmul_checker_s(uint32_t n, uint32_t m, uint32_t p, float *d_A, float *d_B, float *d_C) {
+    float *A;
+    float *B;
+    float *C;
+    bool fail = false;
+
+    A = (float *) malloc(sizeof(float) * (n * m));
+    B = (float *) malloc(sizeof(float) * (m * p));
+    C = (float *) malloc(sizeof(float) * (n * p));
+
+    CUDAERR_CHECK(
+        cudaMemcpy(A,
+                   d_A,
+                   sizeof(float) * n * m,
+                   cudaMemcpyDeviceToHost),
+        "Unable to copy data from device!: A", ERR_CUDA_MEMCPY);
+
+    CUDAERR_CHECK(
+        cudaMemcpy(B,
+                   d_B,
+                   sizeof(float) * m * p,
+                   cudaMemcpyDeviceToHost),
+        "Unable to copy data from device! :B", ERR_CUDA_MEMCPY);
+
+    CUDAERR_CHECK(
+        cudaMemcpy(C,
+                   d_C,
+                   sizeof(float) * n * p,
+                   cudaMemcpyDeviceToHost),
+        "Unable to copy data from device! :C", ERR_CUDA_MEMCPY);
+
+    /*
+    std::ofstream file("dump_out.txt");
+
+    for(int j = 0; j < n; j += 1) {
+        for(int i = 0; i < p; i += 1) {
+            float sum = 0.0;
+            for(int k = 0; k < m; k += 1) {
+                sum += A[j * m + k] * B[k * p + i];
+            }
+            file << sum  << " ";
+
+            if(C[j * p + i] != sum) {
+                std::cout << "MATMUL failed i=" << i << ",j=" << j << "! Expected " << sum << " Actual " << C[j * p + i] << std::endl;
+                fail = true;
+                CERR_CHECK(!fail, "Matmul checker failed!!", ERR_CHECKER_FAILED);
+            }
+
+        }
+        file << std::endl;
+    }
+    file.close();
+    */
 
     free(A);
     free(B);

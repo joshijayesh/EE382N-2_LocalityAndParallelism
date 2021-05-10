@@ -83,11 +83,14 @@ bool parse(std::string src, struct stat s, std::vector<PGMData> &pgm_list, std::
 
         closedir(dp);
 
-        if(total_pgms != 0)
+        if(total_pgms != 0) {
+            std::cout << src << std::endl;
             pgm_ordering.push_back(make_person(src, num_train, num_test));
+        }
 
         return false;
     } else if (s.st_mode & S_IFREG) {
+        std::cout << src << std::endl;
         if(src.size() > 4 && src.substr(src.size() - 4) == ".pgm") {
             PGMData pgm_data = read_PGM(src);
             pgm_list.push_back(pgm_data);

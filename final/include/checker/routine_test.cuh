@@ -12,3 +12,5 @@ void transpose_checker(int width, int height, float* A, float* A_T);
 
 void matmul_checker(uint32_t n, uint32_t m, uint32_t p, float *A, float *B, float *C);
 
+void matmul_checker_s(uint32_t n, uint32_t m, uint32_t p, float *A, float *B, float *C);
+

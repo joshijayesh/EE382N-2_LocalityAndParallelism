@@ -37,7 +37,7 @@ class PCATraining {
         float *d_data_transpose;
         float *d_data_cov;
         float *d_eigenvectors;
-        float *d_eigenvalues;
+    
         float *d_eigenvectors_sorted;
 
         float *d_real_eigenvectors;
