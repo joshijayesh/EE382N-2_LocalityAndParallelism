@@ -10,7 +10,7 @@
 #include "training/routine.hpp"
 #include "training/routine.cuh"
 
-#define TOL 1.0*pow(10.0,-15.0)
+#define TOL 1.0*pow(10.0,-10.0)
 #define NoOfThreads 256
 #define NoofThreads_2 2*NoOfThreads
 
@@ -83,10 +83,10 @@ __global__ void kernelRotate(float* A, int k , int l, int n, double* s0, double*
     double t; // tan 
     double Adiff = A[n*l +l] - A[n*k +k];
     double temp = A[n*k +l]; // float temp = A[k,l];
-    if(abs(temp) < abs(Adiff)*exp10f(-38))
+    if(abs(temp) < abs(Adiff)*exp10f(-10))
         t = temp/Adiff;
     else {
-        float phi = Adiff/(2.0*temp);
+        double phi = Adiff/(2.0*temp);
         t = 1.0/(abs(phi) + sqrt(phi*phi + 1.0));
         if(phi < 0.0) 
             t = -t;
