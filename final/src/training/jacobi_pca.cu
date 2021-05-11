@@ -129,7 +129,7 @@ __global__ void kernelRotate(float* A, int k , int l, int n, double* s0, double*
 __global__ void kernelRotateP(float* p, int k , int l, int n, double* s0, double* tau0) {
 
     int idx = blockIdx.x*blockDim.x + threadIdx.x;
-    if(idx >= n)double
+    if(idx >= n)
         return;
     double s = *s0;
     double tau = *tau0;
