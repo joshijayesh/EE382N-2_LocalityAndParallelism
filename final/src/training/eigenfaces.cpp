@@ -10,6 +10,7 @@
 
 PCATraining* find_class(std::string target, std::vector<PGMData> pgm_list, uint32_t num_components) {
     if (target == "jacobi") return new JacobiPCA(pgm_list, num_components);
+    if (target == "qr") return new QRPCA(pgm_list, num_components);
     else CERR_CHECK(false, "Unknown target: " + target, ERR_UNKNOWN_TARGET);
 
     // This is just to avoid warning... unless we want to default to this?
@@ -18,8 +19,8 @@ PCATraining* find_class(std::string target, std::vector<PGMData> pgm_list, uint3
 
 // TODO: make customizable target
 void launch_training(std::vector<PGMData> pgm_list, uint32_t num_components,
-                     std::string out_file) {
-    PCATraining* routine = find_class("jacobi", pgm_list,
+                     std::string out_file, std::string algorithm) {
+    PCATraining* routine = find_class(algorithm, pgm_list,
                                      num_components > pgm_list.size() ? pgm_list.size() : num_components);
     routine->load_matrix();
     routine->mean_image();

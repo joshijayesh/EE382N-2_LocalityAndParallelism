@@ -60,5 +60,16 @@ class JacobiPCA: public PCATraining {
         ~JacobiPCA() {};
 };
 
+class QRPCA : public PCATraining {
+    public:
+        QRPCA(std::vector<PGMData> pl, uint32_t num_components) :
+            PCATraining(pl, num_components)
+        {};
+
+        void find_eigenvectors();
+
+        ~QRPCA() {};
+};
+
 #endif  // __TRAINING_ROUTINE_HPP_
 

@@ -121,7 +121,7 @@ void verify(std::vector<PGMData> &pgm_list) {
 }
 
 void start(std::string src, std::string dest, std::string target, std::string input, float test_train_split,
-          uint32_t num_components) {
+          uint32_t num_components, std::string algorithm) {
     struct stat s;
     std::vector<PGMData> pgm_list = {};
     std::vector<Person> pgm_ordering = {};
@@ -136,7 +136,7 @@ void start(std::string src, std::string dest, std::string target, std::string in
     verify(pgm_list);
 
     if(target == "train")
-        launch_training(pgm_list, num_components, dest);
+        launch_training(pgm_list, num_components, dest, algorithm);
     else
         launch_test(pgm_list, pgm_ordering, input, num_components);
 }
@@ -147,6 +147,7 @@ int main(int argc, char* argv[]) {
     std::string dest;
     std::string target;
     std::string input;
+    std::string algorithm;
     float test_train_split;
     int num_components;
     cxxopts::Options options("final", "Face recognition on GPU using PCA");
@@ -157,6 +158,7 @@ int main(int argc, char* argv[]) {
         ("i,input", "Input file for test (undefined for train)", cxxopts::value<std::string>()->default_value("jumble"))
         ("k,num_components", "Number of components to compute", cxxopts::value<int>()->default_value("100000"))
         ("t,target", "Choose target as 'test' or 'train'", cxxopts::value<std::string>()->default_value("train"))
+        ("a,algorithm", "Choose algorithm to run, default jacobi", cxxopts::value<std::string>()->default_value("jacobi"))
         ("m,train_test_split", "Specify train-test split", cxxopts::value<int>()->default_value("100"))
         ("h,help", "Print usage");
 
@@ -181,10 +183,13 @@ int main(int argc, char* argv[]) {
     test_train_split = (float) (result["train_test_split"].as<int>()) / 100.0;
     CERR_CHECK(0 <= test_train_split && 1.0 >= test_train_split, "test_train_split must be within [0, 1.0]", ERR_INVALID_ARG);
 
+    algorithm = result["algorithm"].as<std::string>();
+    CERR_CHECK(algorithm == "jacobi" || algorithm == "qr", "algorithm must be either 'jacobi' or 'qr'", ERR_INVALID_ARG);
+
     input = result["input"].as<std::string>();
 
     num_components = result["num_components"].as<int>();
 
-    start(src, dest, target, input, test_train_split, (uint32_t) num_components);
+    start(src, dest, target, input, test_train_split, (uint32_t) num_components, algorithm);
 }
 

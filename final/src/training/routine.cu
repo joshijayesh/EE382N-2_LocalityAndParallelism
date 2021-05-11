@@ -159,7 +159,7 @@ void PCATraining::compute_covariance() {
     cudaDeviceSynchronize();
 
     #ifdef EN_CHECKER
-    matmul_checker(n, m, n, d_data_transpose, d_data, d_data_cov);
+    matmul_checker_s(n, m, n, d_data_transpose, d_data, d_data_cov);
     #endif
 
     float *h_identity;
@@ -297,7 +297,7 @@ void PCATraining::post_process() {
     cudaDeviceSynchronize();
 
     #ifdef EN_CHECKER
-    matmul_checker_s(m, n, p, d_data, d_eigenvectors_sorted, d_real_eigenvectors);
+    matmul_checker(m, n, p, d_data, d_eigenvectors_sorted, d_real_eigenvectors);
     #endif
 
     dim3 block2D_3 (1, p);

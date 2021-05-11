@@ -29,6 +29,7 @@ Currently supports these command line arguments:
 * -k {NUM COMPONENTS}: number of components to save off to file (default = max)
 * -t train: Selects the current run as training phase
 * -m {TRAIN TEST SPLIT}: Percentage for train-test split. I.e. -m 60 => 60% training
+* -a {ALGORITHM}: Target algorithm for Eigenvectors (default jacobi). Supported: jacobi, qr
 * -h/--help: Show help message
 
 ## TEST
