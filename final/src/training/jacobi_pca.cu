@@ -11,7 +11,7 @@
 #include "training/routine.cuh"
 
 #define TOL 1.0*pow(10.0,-10.0)
-#define NoOfThreads 256
+#define NoOfThreads 512
 #define NoofThreads_2 2*NoOfThreads
 
 
@@ -75,15 +75,17 @@ __global__ void maxElemalongy(float* A_s, int* k_s, int* l_s, int n){
 }
 
 
-__global__ void kernelRotate(float* A, int k , int l, int n, double* s0, double* tau0 ) {
+__global__ void kernelRotate(float* A, int* k_s , int* l_s, int n, double* s0, double* tau0 ) {
     int idx = blockIdx.x*blockDim.x + threadIdx.x;
     if(idx >= n) 
         return;
-
+    
+    int k = k_s[0];
+    int l = l_s[0];
     double t; // tan 
     double Adiff = A[n*l +l] - A[n*k +k];
     double temp = A[n*k +l]; // float temp = A[k,l];
-    if(abs(temp) < abs(Adiff)*exp10f(-10))
+    if(abs(temp) < abs(Adiff)*exp10f(-36))
         t = temp/Adiff;
     else {
         double phi = Adiff/(2.0*temp);
@@ -126,14 +128,15 @@ __global__ void kernelRotate(float* A, int k , int l, int n, double* s0, double*
 }
 
 
-__global__ void kernelRotateP(float* p, int k , int l, int n, double* s0, double* tau0) {
+__global__ void kernelRotateP(float* p, int* k_s , int* l_s, int n, double* s0, double* tau0) {
 
     int idx = blockIdx.x*blockDim.x + threadIdx.x;
     if(idx >= n)
         return;
     double s = *s0;
     double tau = *tau0;
-
+    int k = k_s[0];
+    int l = l_s[0];
     double temp = p[n*idx + k];
     double temp2 = p[n*idx + l];
     p[n*idx + k] = temp - s*(temp2 + tau*temp);
@@ -236,14 +239,16 @@ void JacobiPCA::find_eigenvectors() {
         int *ptr_l = &l;
 
         cudaMemcpy(ptr_Amax,&A_s[0],sizeof(float),cudaMemcpyDeviceToHost);
-        cudaMemcpy(ptr_k,&k_s[0],sizeof(int),cudaMemcpyDeviceToHost);
-        cudaMemcpy(ptr_l,&l_s[0],sizeof(int),cudaMemcpyDeviceToHost);
+        // cudaMemcpy(ptr_k,&k_s[0],sizeof(int),cudaMemcpyDeviceToHost);
+        // cudaMemcpy(ptr_l,&l_s[0],sizeof(int),cudaMemcpyDeviceToHost);
 
         k = *ptr_k;
         l = *ptr_l;
         Amax = *ptr_Amax;
         // printf("Amax for iter - %d,%f\n", iter,Amax);
         // printf("K,l = %d,%d\n",k,l);
+        // printf("for itr  %d Amax = %f k = %d l = %d\n",iter, abs(Amax), k, l);
+
 
         if (abs(Amax) < TOL){
             break;
@@ -256,9 +261,9 @@ void JacobiPCA::find_eigenvectors() {
         double *tau0 = &tau1;
 
         // printf("%s\n","kernel A rotate start" );
-        kernelRotate<<<gridDim1, blockDim1>>>(A,k,l, n,s0,tau0);
+        kernelRotate<<<gridDim1, blockDim1>>>(A,k_s,l_s, n,s0,tau0);
         // printf("%s\n,","kernel A rotate complete" );
-        kernelRotateP<<<gridDim1, blockDim1>>>(p,k,l,n,s0,tau0);
+        kernelRotateP<<<gridDim1, blockDim1>>>(p,k_s,l_s,n,s0,tau0);
         cudaDeviceSynchronize();
         // printf("%s, %d\n,","iter complete - ", iter );
 
