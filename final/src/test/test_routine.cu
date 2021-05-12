@@ -89,6 +89,10 @@ void PCATest::load_matrix(PCATextConv text_conv) {
         cudaMalloc((void **) &d_predictions, sizeof(uint32_t) * num_images),
         "Unable to malloc d_data", ERR_CUDA_MALLOC);
 
+    CUDAERR_CHECK(
+        cudaMalloc((void **) &d_ptr_confidence, sizeof(float) * num_images),
+        "Unable to malloc d_data", ERR_CUDA_MALLOC);
+
 
     // Copy over data to the GPU
     int i = 0;
@@ -142,7 +146,7 @@ void PCATest::find_euclidian() {
     std::cout << "num_components " << num_components << std::endl;
     std::cout << "num_train_per_person " << num_train_per_person << std::endl;
     nearest_vector<<<gridDim,blockDim>>>(num_images, num_train_images, num_components, num_train_per_person,
-                                         d_train_wv, d_results, d_predictions);
+                                         d_train_wv, d_results, d_predictions, d_ptr_confidence);
     cudaDeviceSynchronize();
 }
 
@@ -152,7 +156,9 @@ void PCATest::find_confidence() {
 
 void PCATest::final_image() {
     int* h_predictions;
+    float* h_confidence;
     h_predictions = (int *) malloc(sizeof(int) * num_images);
+    h_confidence = (float *) malloc(sizeof(float) * num_images);
 
     CUDAERR_CHECK(
         cudaMemcpy(h_predictions,
@@ -161,11 +167,19 @@ void PCATest::final_image() {
                    cudaMemcpyDeviceToHost),
         "Unable to copy data from device!: d_predictions", ERR_CUDA_MEMCPY);
 
+    CUDAERR_CHECK(
+        cudaMemcpy(h_confidence,
+                   d_ptr_confidence,
+                   sizeof(float) * num_images,
+                   cudaMemcpyDeviceToHost),
+        "Unable to copy data from device!: d_ptr_confidence", ERR_CUDA_MEMCPY);
+
     for (int i = 0; i < num_images; i += 1) {
-        std::cout << "Image: " << i << " Pred: " << h_predictions[i] << std::endl;
+        std::cout << "Image: " << i << " Pred: " << h_predictions[i] << " Conf: " << h_confidence[i] <<  std::endl;
     }
     
     free(h_predictions);
+    free(h_confidence);
 }
 
 PCATest::~PCATest() {
@@ -178,6 +192,7 @@ PCATest::~PCATest() {
         cudaFree(d_results);
         cudaFree(d_data_temp);
         cudaFree(d_predictions);
+        cudaFree(d_ptr_confidence);
     }
 }
 

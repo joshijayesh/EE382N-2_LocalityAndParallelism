@@ -13,7 +13,7 @@
 
 #include "commons.cuh"
 
-__global__ void nearest_vector(int num_test_images, int num_train_images, int num_components, int num_train_per_person, float *train_projections, float *test_projections,int *predictions)
+__global__ void nearest_vector(int num_test_images, int num_train_images, int num_components, int num_train_per_person, float *train_projections, float *test_projections,int *predictions, float* confidence)
 {
 uint16_t wid = threadIdx.x >> THREADS_PER_WARP_LOG;
 uint16_t lane = threadIdx.x & THREADS_PER_WARP_MASK;
@@ -83,6 +83,10 @@ if(idx_x<num_test_images)
         int *prediction_ptr = predictions + idx_x;
 
         *prediction_ptr = prediction / num_train_per_person;
+
+        float *confidence_ptr = confidence + idx_x;
+
+        *confidence_ptr = 1.0f - (sqrt(min_dst / (num_train_images * num_components)) / 255.0f);
 }
 
 

@@ -52,5 +52,6 @@ class PCATest {
         float *d_data_temp;
 
         int *d_predictions;
+        float *d_ptr_confidence;
 };
 
