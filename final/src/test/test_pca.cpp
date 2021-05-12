@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <chrono>
 #include <functional>
 
 #include "commons.hpp"
@@ -52,7 +53,7 @@ PCATextConv parse_input(std::string input) {
 }
 
 
-void launch_test(std::vector<PGMData> pgm_list, std::vector<Person> persons, std::string input, uint32_t num_components) {
+void launch_test(std::vector<PGMData> pgm_list, std::vector<Person> persons, std::string input, uint32_t num_components, std::string out_file) {
     uint32_t num_train = persons.front().num_train;
     uint32_t num_test = persons.front().num_test;
 
@@ -60,10 +61,18 @@ void launch_test(std::vector<PGMData> pgm_list, std::vector<Person> persons, std
     PCATextConv text_conv = parse_input(input);
     
     routine->load_matrix(text_conv);
+
+    auto start = std::chrono::high_resolution_clock::now();
     routine->mean_image();
-    routine->find_euclidian();
-    routine->find_confidence();
-    routine->final_image();
+    auto stop = std::chrono::high_resolution_clock::now();
+    std::cout << "Time Test Mean Image: " << std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count() << " us" << std::endl;
+
+    start = std::chrono::high_resolution_clock::now();
+    routine->predict();
+    stop = std::chrono::high_resolution_clock::now();
+    std::cout << "Time Find Prediction: " << std::chrono::duration_cast<std::chrono::microseconds>(stop - start).count() << " us" << std::endl;
+
+    routine->final_image(out_file);
 
     delete routine;
 }

@@ -29,8 +29,6 @@ __global__ void nearest_vector(int num_test_images, int num_train_images, int nu
         float min_dst=-1;
         int min_idx;
 
-        
-
         while(img_num < num_train_images) {
             float l2_dist = 0.0;
             float *train_img_ptr = train_projections + img_num;

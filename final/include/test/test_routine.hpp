@@ -30,9 +30,8 @@ class PCATest {
 
         void load_matrix(PCATextConv);
         void mean_image();
-        void find_euclidian();
-        void find_confidence();
-        void final_image();
+        void predict();
+        void final_image(std::string);
 
         ~PCATest();
 

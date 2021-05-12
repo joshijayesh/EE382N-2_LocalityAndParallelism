@@ -84,13 +84,11 @@ bool parse(std::string src, struct stat s, std::vector<PGMData> &pgm_list, std::
         closedir(dp);
 
         if(total_pgms != 0) {
-            std::cout << src << std::endl;
             pgm_ordering.push_back(make_person(src, num_train, num_test));
         }
 
         return false;
     } else if (s.st_mode & S_IFREG) {
-        std::cout << src << std::endl;
         if(src.size() > 4 && src.substr(src.size() - 4) == ".pgm") {
             PGMData pgm_data = read_PGM(src);
             pgm_list.push_back(pgm_data);
@@ -138,7 +136,7 @@ void start(std::string src, std::string dest, std::string target, std::string in
     if(target == "train")
         launch_training(pgm_list, num_components, dest, algorithm);
     else
-        launch_test(pgm_list, pgm_ordering, input, num_components);
+        launch_test(pgm_list, pgm_ordering, input, num_components, dest);
 }
 
 
@@ -191,5 +189,7 @@ int main(int argc, char* argv[]) {
     num_components = result["num_components"].as<int>();
 
     start(src, dest, target, input, test_train_split, (uint32_t) num_components, algorithm);
+
+    return SUCCESS;
 }
 

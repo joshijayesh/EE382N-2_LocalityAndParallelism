@@ -7,8 +7,9 @@
 #include <iostream>
 
 // Comment this out to disable checker
-#define EN_CHECKER
+// #define EN_CHECKER
 
+#define SUCCESS 0
 #define ERR_FAILED_OPEN_PGM 1
 #define ERR_UNSUPPORTED_GRAY 2
 #define ERR_ARGPARSE_FAILED 3

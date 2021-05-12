@@ -164,6 +164,7 @@ void PCATraining::compute_covariance() {
 
     float *h_identity;
 
+    /*
     h_identity = (float *) malloc(sizeof(float) * (n * n));
 
     CUDAERR_CHECK(
@@ -182,6 +183,7 @@ void PCATraining::compute_covariance() {
     }
 
     free(h_identity);
+    */
 }
 
 void PCATraining::sort_eigenvectors() {
@@ -189,6 +191,7 @@ void PCATraining::sort_eigenvectors() {
     float* v = d_eigenvectors;
     float* w = d_data_cov;
 
+    /*
     float *h_eigenvalues;
 
     h_eigenvalues = (float *) malloc(sizeof(float) * (n * n));
@@ -209,6 +212,7 @@ void PCATraining::sort_eigenvectors() {
     }
 
     free(h_eigenvalues);
+    */
 
 
     int* sort_index,*sort_index_copy;
@@ -254,7 +258,8 @@ void PCATraining::sort_eigenvectors() {
 
     sort_vector_kernel<<<gridDim,blockDim>>>(v,v_sorted,sort_index,n);
     cudaDeviceSynchronize();
-
+    
+    /*
     float *A;
 
     A = (float *) malloc(sizeof(int) * (n * n));
@@ -274,6 +279,7 @@ void PCATraining::sort_eigenvectors() {
         file2 << std::endl;
     }
     free(A);
+    */
 
     cudaFree(sort_index);
     cudaFree(sort_index_copy);
@@ -313,6 +319,7 @@ void PCATraining::post_process() {
     #endif
     */
 
+    /*
     float *A;
 
     A = (float *) malloc(sizeof(float) * (m * p));
@@ -333,6 +340,7 @@ void PCATraining::post_process() {
     }
 
     free(A);
+    */
 
     // Transpose for projection
     transpose_kernel<<<block2D, grid2D>>> (p, m, d_real_eigenvectors_norm, d_real_eigenvectors_transpose);
