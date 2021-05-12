@@ -9,10 +9,10 @@ import statistics
 PROJ = "../eigenfaces"
 FACES = "../media/att_faces/"
 # TRAIN_TEST_SPLITS = [50, 60, 70, 80, 90]
-TRAIN_TEST_SPLITS = [50, 60, 70]
+TRAIN_TEST_SPLITS = [50, 60]
 # NUM_COMPONENTS = [5, 10, 25, 50, 75, 100]
 NUM_COMPONENTS = [5, 10]
-ITERATIONS = 2
+ITERATIONS = 1
 METHODS = ["jacobi", "qr"]
 
 ODIR = Path("tmp/")
@@ -51,7 +51,7 @@ def run_cmd(cmd):
         line = process.stdout.readline()
         if not line: break
         lines.append(line.decode("utf-8"))
-        print(line)
+        print(lines[-1][:-1])
 
     return_code = process.poll()
 
@@ -88,8 +88,8 @@ def output_training(results, results_file):
 
     for split, split_dict in results.items():
         for grouping, vals in split_dict.items():
-            print(f"{grouping:<16} Split: {split:>2} Mean: {statistics.mean(vals):.03f} StdDev: {statistics.stdev(vals) if len(vals) > 1 else 0.0:.06f}")
-            results_file.write(f"{grouping:<16} Split: {split:>2} Mean: {statistics.mean(vals):.03f} StdDev: {statistics.stdev(vals) if len(vals) > 1 else 0.0:.06f}\n")
+            print(f"{grouping:<16} Split: {split:>2} Mean: {statistics.mean(vals):>10.03f} StdDev: {statistics.stdev(vals) if len(vals) > 1 else 0.0:.06f}")
+            results_file.write(f"{grouping:<16} Split: {split:>2} Mean: {statistics.mean(vals):>10.03f} StdDev: {statistics.stdev(vals) if len(vals) > 1 else 0.0:.06f}\n")
 
 
 def output_test(results, results_file):
@@ -98,8 +98,8 @@ def output_test(results, results_file):
     for split, split_dict in results.items():
         for k, k_dict in split_dict.items():
             for grouping, vals in k_dict.items():
-                print(f"{grouping:<16} Split: {split:>2} K: {k:>3} Mean: {statistics.mean(vals):.03f} StdDev: {statistics.stdev(vals) if len(vals) > 1 else 0.0:.06f}")
-                results_file.write(f"{grouping:<16} Split: {split:>2} K: {k:>3} Mean: {statistics.mean(vals):.03f} StdDev: {statistics.stdev(vals) if len(vals) > 1 else 0.0:.06f}\n")
+                print(f"{grouping:<16} Split: {split:>2} K: {k:>3} Mean: {statistics.mean(vals):>10.03f} StdDev: {statistics.stdev(vals) if len(vals) > 1 else 0.0:.06f}")
+                results_file.write(f"{grouping:<16} Split: {split:>2} K: {k:>3} Mean: {statistics.mean(vals):>10.03f} StdDev: {statistics.stdev(vals) if len(vals) > 1 else 0.0:.06f}\n")
             
 
 
@@ -114,7 +114,7 @@ def main():
                 cmd = f"{PROJ} -s {FACES} -d {TRAIN_OUT} -m {split} -t train -a {method}"
 
                 output = run_cmd(cmd)
-                parse_training(output, training_results)
+                parse_training(output, training_results, split)
 
                 for k in NUM_COMPONENTS:
                     cmd = f"{PROJ} -s {FACES} -i {TRAIN_OUT} -d {TEST_OUT} -m {split} -t test -k {k}"
