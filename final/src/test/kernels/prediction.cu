@@ -15,54 +15,52 @@
 
 __global__ void nearest_vector(int num_test_images, int num_train_images, int num_components, int num_train_per_person, float *train_projections, float *test_projections,int *predictions, float* confidence)
 {
-uint16_t wid = threadIdx.x >> THREADS_PER_WARP_LOG;
-uint16_t lane = threadIdx.x & THREADS_PER_WARP_MASK;
-uint32_t idx_x = ((blockIdx.x * WARPS_PER_BLOCK) + wid);
+    uint16_t wid = threadIdx.x >> THREADS_PER_WARP_LOG;
+    uint16_t lane = threadIdx.x & THREADS_PER_WARP_MASK;
+    uint32_t idx_x = ((blockIdx.x * WARPS_PER_BLOCK) + wid);
 
+    if(idx_x<num_test_images)
+    {
+        // printf("idx_x = %d\n",idx_x );
+        uint16_t img_num = lane;
+        uint32_t stride1 = num_train_images;
+        uint32_t stride2 = num_test_images;
 
-if(idx_x<num_test_images)
-{
-    // printf("idx_x = %d\n",idx_x );
-    float *test_img_ptr = test_projections+ idx_x;
-    uint16_t img_num = lane;
-    float *train_img_ptr = train_projections + lane;
-    uint32_t stride1 = num_train_images;
-    uint32_t stride2 = num_test_images;
+        float min_dst=-1;
+        int min_idx;
 
-    float min_dst=-1;
-    int min_idx;
+        
 
-    
+        while(img_num < num_train_images) {
+            float l2_dist = 0.0;
+            float *train_img_ptr = train_projections + img_num;
+            float *test_img_ptr = test_projections+ idx_x;
+            float u;
+            for(int i=0;i<num_components;i++)
+            {
+                u = *test_img_ptr- *train_img_ptr;
+                l2_dist += u*u ;
+                train_img_ptr += stride1;
+                test_img_ptr += stride2;
 
-    while(img_num < num_train_images) {
+            }
 
-        float l2_dist = 0.0;
-        float u;
-        for(int i=0;i<num_components;i++)
-        {
-            u = *test_img_ptr- *train_img_ptr;
-            l2_dist += u*u ;
-            train_img_ptr += stride1;
-            test_img_ptr += stride2;
-
-        }
-
-        if(min_dst<0) 
+            if(min_dst<0) 
             {
                 min_dst = l2_dist;
                 min_idx = img_num;
             }
-        else
-        {
-            if(l2_dist<min_dst)
+            else
             {
-                min_dst = l2_dist;
-                min_idx = img_num;
+                if(l2_dist<min_dst)
+                {
+                    min_dst = l2_dist;
+                    min_idx = img_num;
+                }
             }
-        }
 
-        img_num += THREADS_PER_WARP;
-    
+            img_num += THREADS_PER_WARP;
+
         }
 
         // printf("lane = %d, min_dst= %f, min_idx = %d\n",lane,min_dst,min_idx);
@@ -81,17 +79,11 @@ if(idx_x<num_test_images)
         int prediction = __shfl_sync(FULL_WARP_MASK, min_idx, 0);
 
         int *prediction_ptr = predictions + idx_x;
-
         *prediction_ptr = prediction / num_train_per_person;
 
         float *confidence_ptr = confidence + idx_x;
-
         *confidence_ptr = 1.0f - (sqrt(min_dst / (num_train_images * num_components)) / 255.0f);
-}
-
-
-
-
+    }
 }
 
 

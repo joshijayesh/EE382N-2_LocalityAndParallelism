@@ -174,9 +174,20 @@ void PCATest::final_image() {
                    cudaMemcpyDeviceToHost),
         "Unable to copy data from device!: d_ptr_confidence", ERR_CUDA_MEMCPY);
 
+    uint32_t correct = 0;
+    uint32_t incorrect = 0;
+    float confidence_incorrect = 0.0;
     for (int i = 0; i < num_images; i += 1) {
+        correct += (i / num_test_per_person) == h_predictions[i] ? 1 : 0;
         std::cout << "Image: " << i << " Pred: " << h_predictions[i] << " Conf: " << h_confidence[i] <<  std::endl;
+        if(!(i / num_test_per_person) == h_predictions[i]) {
+            confidence_incorrect += h_confidence[i];
+            incorrect += 1;
+        }
     }
+
+    std::cout << "Accuracy: " << ((float) (correct) / (float) (num_images)) * 100 << "%" << std::endl;
+    std::cout << "Average incorrect confidence: " << (confidence_incorrect / incorrect) << std::endl;
     
     free(h_predictions);
     free(h_confidence);

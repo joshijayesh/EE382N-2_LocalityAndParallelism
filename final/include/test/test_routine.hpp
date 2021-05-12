@@ -18,13 +18,14 @@ typedef struct pCATextConv {
 
 class PCATest {
     public:
-        PCATest(std::vector<PGMData> pl, uint32_t num_components, uint32_t num_train):
+        PCATest(std::vector<PGMData> pl, uint32_t num_components, uint32_t num_train, uint32_t num_test):
             pgm_list(pl),
             width(pl.front().col),
             height(pl.front().row),
             num_images(pl.size()),
             num_components(num_components),
-            num_train_per_person(num_train)
+            num_train_per_person(num_train),
+            num_test_per_person(num_test)
         {}
 
         void load_matrix(PCATextConv);
@@ -43,6 +44,7 @@ class PCATest {
         int num_train_images;
         uint32_t num_components;
         uint32_t num_train_per_person;
+        uint32_t num_test_per_person;
 
         float *d_mean;
         float *d_train_ev;

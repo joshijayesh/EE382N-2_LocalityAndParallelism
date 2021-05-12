@@ -54,8 +54,9 @@ PCATextConv parse_input(std::string input) {
 
 void launch_test(std::vector<PGMData> pgm_list, std::vector<Person> persons, std::string input, uint32_t num_components) {
     uint32_t num_train = persons.front().num_train;
+    uint32_t num_test = persons.front().num_test;
 
-    PCATest* routine = new PCATest(pgm_list, num_components > pgm_list.size() ? pgm_list.size() : num_components, num_train);
+    PCATest* routine = new PCATest(pgm_list, num_components > pgm_list.size() ? pgm_list.size() : num_components, num_train, num_test);
     PCATextConv text_conv = parse_input(input);
     
     routine->load_matrix(text_conv);
