@@ -10,7 +10,7 @@
 #include <cuda_runtime.h>
 #include <cusolverDn.h>
 #include <fstream>
-
+#include <sys/time.h>
 void printMatrix(int m, int n, const double*A, int lda, const char* name)
 {
     for(int row = 0 ; row < m ; row++){
@@ -44,9 +44,32 @@ int main(int argc, char*argv[])
  *       | 2 1  |
  */
     double A[lda*n]; //= { 1.0, 4.0, 2.0, 2.0, 5.0, 1.0};
-    for(int i=0;i<lda;i++)
-        for(int j=0;j<n;j++)
-        A[i*n+j] = i+j-1;
+
+
+    std::ifstream cov_file("dump_identity.txt");
+
+   // char toss;
+
+//    cov_file.read(&toss, 1);
+
+    for(uint32_t i = 0; i < lda; i += 1) {
+        for(uint32_t j = 0; j < n; j += 1) {
+            cov_file >> A[i * n + j];
+        }
+    }
+
+   std::ofstream file("dump_A.txt");
+    for(int i = 0; i < lda; i += 1) {
+        for(int j = 0; j < n; j += 1) {
+            file << A[i * m + j] << " ";
+        }
+        file << std::endl;
+    }
+
+
+    // for(int i=0;i<lda;i++)
+    //     for(int j=0;j<n;j++)
+    //     A[i*n+j] = i+j-1;
     double U[ldu*m]; /* m-by-m unitary matrix, left singular vectors  */
     double V[ldv*n]; /* n-by-n unitary matrix, right singular vectors */
     double S[minmn];     /* numerical singular value */
@@ -150,6 +173,9 @@ int main(int argc, char*argv[])
     assert(cudaSuccess == cudaStat1);
 
 /* step 5: compute SVD */
+    struct timeval t1, t2;
+
+gettimeofday(&t1, 0);
     status = cusolverDnDgesvdj(
         cusolverH,
         jobz,  /* CUSOLVER_EIG_MODE_NOVECTOR: compute singular values only */
@@ -174,6 +200,11 @@ int main(int argc, char*argv[])
     cudaStat1 = cudaDeviceSynchronize();
     assert(CUSOLVER_STATUS_SUCCESS == status);
     assert(cudaSuccess == cudaStat1);
+    gettimeofday(&t2, 0);
+
+double time = (1000000.0*(t2.tv_sec-t1.tv_sec) + t2.tv_usec-t1.tv_usec)/1000.0;
+
+printf("Time to generate:  %3.1f ms \n", time);
 
     cudaStat1 = cudaMemcpy(U, d_U, sizeof(double)*ldu*m, cudaMemcpyDeviceToHost);
     cudaStat2 = cudaMemcpy(V, d_V, sizeof(double)*ldv*n, cudaMemcpyDeviceToHost);
