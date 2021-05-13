@@ -75,7 +75,7 @@ __global__ void maxElemalongy(float* A_s, int* k_s, int* l_s, int n){
 }
 
 
-__global__ void kernelRotate(float* A, int* k_s , int* l_s, int n, double* s0, double* tau0 ) {
+__global__ void kernelRotate(float* A, float* p, int* k_s , int* l_s, int n ) {
     int idx = blockIdx.x*blockDim.x + threadIdx.x;
     if(idx >= n) 
         return;
@@ -96,17 +96,14 @@ __global__ void kernelRotate(float* A, int* k_s , int* l_s, int n, double* s0, d
     double c = 1.0/sqrt(t*t + 1.0); // cos
     double s = t*c;                 // sin
     double tau = s/(1.0 + c);
-    *s0 = s;
-    *tau0 = tau;
     
     if (idx == k || idx == l){
         A[n*k +l] = 0.0;
         A[n*k +k] = A[n*k +k] - t*temp;
         A[n*l +l] = A[n*l +l] + t*temp;
-        return;
+        
     }
-
-    if (idx < k){
+    else if (idx < k){
         double temp = A[n*idx + k];
         double temp2 = A[n*idx + l];
         A[n*idx + k] = temp - s*(temp2 + tau*temp);
@@ -124,25 +121,30 @@ __global__ void kernelRotate(float* A, int* k_s , int* l_s, int n, double* s0, d
         A[n*k + idx] = temp - s*(temp2 + tau*temp);
         A[n*l + idx] = temp2+ s*(temp - tau*temp2);
     }
+    
+    double temp3 = p[n*idx + k];
+    double temp4 = p[n*idx + l];
+    p[n*idx + k] = temp3 - s*(temp4 + tau*temp3);
+    p[n*idx + l] = temp4 + s*(temp3 - tau*temp4);
     return;
 }
 
 
-__global__ void kernelRotateP(float* p, int* k_s , int* l_s, int n, double* s0, double* tau0) {
+// __global__ void kernelRotateP(float* p, int* k_s , int* l_s, int n, double* s0, double* tau0) {
 
-    int idx = blockIdx.x*blockDim.x + threadIdx.x;
-    if(idx >= n)
-        return;
-    double s = *s0;
-    double tau = *tau0;
-    int k = k_s[0];
-    int l = l_s[0];
-    double temp = p[n*idx + k];
-    double temp2 = p[n*idx + l];
-    p[n*idx + k] = temp - s*(temp2 + tau*temp);
-    p[n*idx + l] = temp2+ s*(temp - tau*temp2);
-    return;
-}
+//     int idx = blockIdx.x*blockDim.x + threadIdx.x;
+//     if(idx >= n)
+//         return;
+//     double s = *s0;
+//     double tau = *tau0;
+//     int k = k_s[0];
+//     int l = l_s[0];
+//     double temp = p[n*idx + k];
+//     double temp2 = p[n*idx + l];
+//     p[n*idx + k] = temp - s*(temp2 + tau*temp);
+//     p[n*idx + l] = temp2+ s*(temp - tau*temp2);
+//     return;
+// }
 
 inline void init_params(float*& A_s, int*& k_s, int*& l_s, double*& s0, double*& tau, uint32_t n){
     /* Assume A/P already on device
@@ -208,8 +210,8 @@ void JacobiPCA::find_eigenvectors() {
 
     float *A_s;
     int *k_s,*l_s;
-    double *s0, *tau0;
-    init_params(A_s, k_s, l_s, s0, tau0, n);
+    //double *s0, *tau0;
+    init_params(A_s, k_s, l_s, n);
  
 
     dim3 blockDim(256,1);
@@ -268,9 +270,9 @@ void JacobiPCA::find_eigenvectors() {
         // *tau0 = 0.0;
 
         // printf("%s\n","kernel A rotate start" );
-        kernelRotate<<<gridDim1, blockDim1>>>(A,k_s,l_s, n,s0,tau0);
+        kernelRotate<<<gridDim1, blockDim1>>>(A,p,k_s,l_s, n);
         // printf("%s\n,","kernel A rotate complete" );
-        kernelRotateP<<<gridDim1, blockDim1>>>(p,k_s,l_s,n,s0,tau0);
+        //kernelRotateP<<<gridDim1, blockDim1>>>(p,k_s,l_s,n,s0,tau0);
         cudaDeviceSynchronize();
         // printf("%s, %d\n,","iter complete - ", iter );
 
