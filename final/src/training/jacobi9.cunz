@@ -1,0 +1,368 @@
+#include <string>
+#include <algorithm>
+#include <math.h>
+#include <stdio.h>
+#include <vector>
+#include <stdlib.h>
+#include <time.h>
+
+#include <cuda.h>
+#include <cuda_runtime.h>
+#include <driver_functions.h>
+
+#define TOL 1.0*pow(10.0,-10.0)
+#define NoOfThreads 512
+#define NoofThreads_2 2*NoOfThreads
+
+////////////////////////////////////////////////////////////////////////////////////////
+// Putting all the cuda kernels here
+///////////////////////////////////////////////////////////////////////////////////////
+
+
+__device__ inline int nextPow2(int n){
+    n--;
+    n |= n >> 1;
+    n |= n >> 2;
+    n |= n >> 4;
+    n |= n >> 8;
+    n |= n >> 16;
+    n++;
+    return n;
+}
+
+
+
+__global__ void maxElemalongx(float* A_s, int* k_s, int* l_s, int n){
+
+    int thread_x = blockIdx.x * blockDim.x + threadIdx.x;
+    int thread_y = blockIdx.y * blockDim.y + threadIdx.y;           /// here this is the row no
+
+    if (thread_y*NoofThreads_2 + thread_x >= (n*(n-1))/2)
+        return;
+
+    int i = NoOfThreads;
+    while(i > 0.9){
+        if(thread_x >= i) return;
+        if(fabsf(A_s[thread_y*NoofThreads_2 + thread_x +i]) > fabsf(A_s[thread_y*NoofThreads_2 + thread_x])){
+            A_s[thread_y*NoofThreads_2 + thread_x] = A_s[thread_y*NoofThreads_2 + thread_x + i];
+            l_s[thread_y*NoofThreads_2 + thread_x] = l_s[thread_y*NoofThreads_2 + thread_x + i];
+            k_s[thread_y*NoofThreads_2 + thread_x] = k_s[thread_y*NoofThreads_2 + thread_x + i];
+        }
+        i = i/2;
+        __syncthreads();
+    }
+    // printf("x = thread id y %d, value = %f\n",thread_y, A_s[thread_y*NoofThreads_2]);
+    return;
+}
+
+
+
+
+__global__ void maxElemalongy(float* A_s, int* k_s, int* l_s, int n){
+
+    int thread_x = blockIdx.x * blockDim.x + threadIdx.x;
+    
+    int max_row = ((n*(n-1)/2) + NoofThreads_2 -1)/(NoofThreads_2);
+    if (thread_x >= max_row)
+        return;
+
+    int i = nextPow2(max_row)/2;//NoOfThreads;
+    while(i > 0.9){
+        if(thread_x >= i) return;
+        if(fabsf(A_s[(thread_x+i)*NoofThreads_2]) > fabsf(A_s[thread_x*NoofThreads_2])){
+            A_s[thread_x*NoofThreads_2] = A_s[(thread_x+i)*NoofThreads_2];
+            k_s[thread_x*NoofThreads_2] = k_s[(thread_x+i)*NoofThreads_2];
+            l_s[thread_x*NoofThreads_2] = l_s[(thread_x+i)*NoofThreads_2];
+        }
+        __syncthreads();
+        i = i/2;
+    }
+
+    return;
+}
+
+
+
+__global__ void kernelRotate(float* A, float* p, int* k_s , int* l_s, int n) {
+    int idx = blockIdx.x*blockDim.x + threadIdx.x;
+    if(idx >= n) 
+        return;
+
+    int max_row = ((n*(n-1)/2) + NoofThreads_2 -1)/(NoofThreads_2);
+
+    for (int i =0; i< max_row; i++){
+        int k = k_s[i*NoofThreads_2];
+        int l = l_s[i*NoofThreads_2];
+        double t; // tan 
+        double Adiff = A[n*l +l] - A[n*k +k];
+        double temp = A[n*k +l]; // float temp = A[k,l];
+        if(abs(temp) < abs(Adiff)*exp10f(-36))
+            t = temp/Adiff;
+        else {
+            double phi = Adiff/(2.0*temp);
+            t = 1.0/(abs(phi) + sqrt(phi*phi + 1.0));
+            if(phi < 0.0) 
+                t = -t;
+        }
+        double c = 1.0/sqrt(t*t + 1.0); // cos
+        double s = t*c;                 // sin
+        double tau = s/(1.0 + c);
+        
+        if (idx == k || idx == l){
+            A[n*k +l] = 0.0;
+            A[n*k +k] = A[n*k +k] - t*temp;
+            A[n*l +l] = A[n*l +l] + t*temp;
+            // return;
+        }
+        else if (idx < k){
+            double temp = A[n*idx + k];
+            double temp2 = A[n*idx + l];
+            A[n*idx + k] = temp - s*(temp2 + tau*temp);
+            A[n*idx + l] = temp2+ s*(temp - tau*temp2);
+        }
+        else if(k < idx && idx <l){
+            double temp = A[n*k + idx];
+            double temp2 = A[n*idx + l];
+            A[n*k + idx] = temp - s*(temp2 + tau*temp);
+            A[n*idx + l] = temp2+ s*(temp - tau*temp2);
+        }
+        else if(l < idx && idx < n){
+            double temp = A[n*k + idx];
+            double temp2 = A[n*l + idx];
+            A[n*k + idx] = temp - s*(temp2 + tau*temp);
+            A[n*l + idx] = temp2+ s*(temp - tau*temp2);
+        }
+
+        temp = p[n*idx + k];
+        double temp2 = p[n*idx + l];
+        p[n*idx + k] = temp - s*(temp2 + tau*temp);
+        p[n*idx + l] = temp2+ s*(temp - tau*temp2);
+    }
+
+    return;
+}
+
+
+void initialize_identity(float *I, int size){
+    memset(I, 0, sizeof(float)*size*size);
+    for (int i = 0; i < size; i++)
+        I[i * size + i] = 1.0;
+
+    return;
+}
+
+
+
+__global__ void initialize_temp_matrices(float *A , float* A_s, int *k_s, int *l_s, int n){
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int idy = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (idx >= n || idy >= idx)
+        return;
+    
+    int index = (idy*(2*n - idy - 1))/2 + idx - idy - 1;
+
+    A_s[index] = A[idy*n + idx];
+    l_s[index] = idx;
+    k_s[index] = idy;
+
+    // printf("idx %d  = %f, %d,",index, A_s[index], l_s[index]);
+
+    return;
+}
+
+
+
+
+void kernelRotateFull(float *A_h, float *p_h, int n) {
+    initialize_identity(p_h,n);
+
+    // printf("%s,%f\n","Tol = ",TOL);
+
+    // for(int io =0; io<n*n;io++)
+    //     printf("%f,",A_h[io]);
+
+    // printf("%s\n","host side" );
+
+
+    float *A;
+    float *p;
+    float *A_s;
+    int *k_s,*l_s;
+
+    cudaMalloc((void **) &A, sizeof(float) * n*n);
+    cudaMalloc((void **) &p, sizeof(float) * n*n);
+    cudaMalloc((void **) &A_s, sizeof(float) * (n*(n-1))/2);
+    cudaMalloc((void **) &k_s, sizeof(int) * (n*(n-1))/2);
+    cudaMalloc((void **) &l_s, sizeof(int) * (n*(n-1))/2);
+
+    size_t size = sizeof(float)* n*n;
+    cudaMemcpy(A,A_h,size,cudaMemcpyHostToDevice);
+    cudaMemcpy(p,p_h,size,cudaMemcpyHostToDevice);
+
+
+    dim3 blockDim(256,1);
+    dim3 gridDim((n + blockDim.x - 1) / blockDim.x,
+                   (n + blockDim.y - 1) / blockDim.y);
+
+
+    dim3 blockDim1(256,1);
+    dim3 gridDim1((n + blockDim1.x - 1) / blockDim1.x);
+
+    int max_row = ((n*(n-1)/2) + NoofThreads_2 -1)/(NoofThreads_2);
+    dim3 blockDim2(NoOfThreads,1);
+    dim3 gridDim2(1,max_row);
+
+    dim3 blockDim3(NoOfThreads,1);
+    dim3 gridDim3((max_row + blockDim3.x - 1) / blockDim3.x);
+
+    // initialize_k_s<<<gridDim,blockDim>>>(k_s,n);
+
+    clock_t start, end;
+    double gpu_time_used;
+    start = clock();
+    int iter_max = 5*n*n;
+    for(int iter = 0; iter < iter_max; iter++){
+        initialize_temp_matrices<<<gridDim,blockDim>>>(A,A_s,k_s,l_s,n);
+        cudaDeviceSynchronize();
+        // printf("%d,%s\n",iter,"initalize" );
+
+        maxElemalongx<<<gridDim2, blockDim2>>>(A_s,k_s,l_s,n);
+        cudaDeviceSynchronize();
+        // maxElemalongy<<<gridDim3, blockDim3>>>(A_s,k_s,l_s,n);
+        // cudaDeviceSynchronize();
+        // printf("%s\n,","max complete");
+        float Amax =0.0;
+        int k =0,l=0;
+        float *ptr_Amax = &Amax;
+        int *ptr_k = &k;
+        int *ptr_l = &l;
+
+        cudaMemcpy(ptr_Amax,&A_s[0],sizeof(float),cudaMemcpyDeviceToHost);
+        // cudaMemcpy(ptr_k,&k_s[0],sizeof(int),cudaMemcpyDeviceToHost);
+        // cudaMemcpy(ptr_l,&l_s[0],sizeof(int),cudaMemcpyDeviceToHost);
+
+        k = *ptr_k;
+        l = *ptr_l;
+        Amax = *ptr_Amax;
+        // printf("Amax for iter - %d,%f\n", iter,Amax);
+        // printf("K,l = %d,%d\n",k,l);
+        // printf("for itr  %d Amax = %f k = %d l = %d\n",iter, abs(Amax), k, l);
+
+        
+        if (abs(Amax) < TOL){
+            printf("existing as max value is %f in iter %d \n",Amax, iter);
+            break;
+        }
+        // printf("%s\n,","Amax checked");
+
+        double s1 =0.0, tau1 =0.0;
+        double *s0 = &s1;
+        double *tau0 = &tau1;
+
+        // printf("%s\n","kernel A rotate start" );
+        kernelRotate<<<gridDim1, blockDim1>>>(A,p,k_s,l_s, n);
+        cudaDeviceSynchronize();
+        // printf("%s, %d\n,","iter complete - ", iter );
+    }
+    end = clock();
+     gpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+    printf("host side ends.Total time taken in s %f \n", gpu_time_used);
+
+    cudaMemcpy(p_h,p,size,cudaMemcpyDeviceToHost);
+    cudaMemcpy(A_h,A,size,cudaMemcpyDeviceToHost);
+    // for(int io =0; io<n;io++){
+    //     for (int ioo =0; ioo<n;ioo++){
+    //         printf("%f,",p_h[io*n +ioo]);
+    //     }
+    //     printf("\n");
+    // }
+
+    // printf("%s\n,","Eigen values are" );
+    // for(int io =0; io<n;io++)
+    //     printf("%f,",A_h[io*n + io]);
+
+    cudaFree(A);
+    cudaFree(A_s);
+    cudaFree(p);
+    cudaFree(l_s);
+    cudaFree(k_s);
+
+    return;
+
+}
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////
+
+
+int main(){
+
+
+    float *A, *p;
+    int n=240;
+    A = (float*)malloc(n*n*sizeof(float));
+    p = (float*)malloc(n*n*sizeof(float));
+
+    FILE *fp;
+       // fp = fopen("test1.txt", "r"); 
+
+   // char buff[255];
+
+   // fscanf(fp, "%f", A);
+
+    // while (fscanf(fp, "%f ", A[i]) == 1) {
+    //     // puts(A[i]);
+    //     i++;
+    // }
+    // for(int i = 0; i<n*n;i++){
+    //     fscanf(fp, "%f", &A[i]);
+    // }
+
+    // printf("reading complete\n");
+    // for (int i =0; i<5;i++)
+    //     printf("%f,",A[i] );
+
+    // printf("kernel start from here\n");
+
+    // *A = 1;
+    // A[1] = 2;
+    // A[2] = 3;
+    // A[3] = 4;
+    // A[4] = 2;
+    // A[5] = 2;
+    // A[6] = 1;
+    // A[7] = 1;
+    // A[8] = 3;
+    // A[9] = 1;
+    // A[10] = 5;
+    // A[11] = 8;
+    // A[12] = 4;
+    // A[13] = 1;
+    // A[14] = 8;
+    // A[15] = 7;
+
+        for(int i=0;i<n;i++){
+            for(int j=0;j<n;j++){
+                A[i*n+j] = i+j-1;
+            }
+        }
+
+
+
+    kernelRotateFull(A,p,n);
+    printf("%s\n","done" );
+
+    // fclose(fp);
+
+    delete[] A;
+    delete[] p;
+
+}
+
+//// Optimization 1.0 on jacobi1.cu
+
+
+//// Optimization 2.0 on jacobi1.cu = 2logn -1 in max 
