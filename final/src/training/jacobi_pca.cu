@@ -11,7 +11,7 @@
 #include "training/routine.cuh"
 
 #define TOL 1.0*pow(10.0,-10.0)
-#define NoOfThreads 512
+#define NoOfThreads 256
 #define NoofThreads_2 2*NoOfThreads
 
 
@@ -144,7 +144,7 @@ __global__ void kernelRotateP(float* p, int* k_s , int* l_s, int n, double* s0, 
     return;
 }
 
-inline void init_params(float*& A_s, int*& k_s, int*& l_s, uint32_t n){
+inline void init_params(float*& A_s, int*& k_s, int*& l_s, double*& s0, double*& tau, uint32_t n){
     /* Assume A/P already on device
     CUDAERR_CHECK(
         cudaMalloc((void **) &A, sizeof(float) * n*n),
@@ -161,6 +161,12 @@ inline void init_params(float*& A_s, int*& k_s, int*& l_s, uint32_t n){
         "Unable to malloc d_data", ERR_CUDA_MALLOC);
     CUDAERR_CHECK(
         cudaMalloc((void **) &l_s, sizeof(int) * n*n),
+        "Unable to malloc d_data", ERR_CUDA_MALLOC);
+    CUDAERR_CHECK(
+        cudaMalloc((void **) &s0, sizeof(double)),
+        "Unable to malloc d_data", ERR_CUDA_MALLOC);
+    CUDAERR_CHECK(
+        cudaMalloc((void **) &tau, sizeof(double)),
         "Unable to malloc d_data", ERR_CUDA_MALLOC);
 
     /*  Assume A/P already on device
@@ -202,7 +208,8 @@ void JacobiPCA::find_eigenvectors() {
 
     float *A_s;
     int *k_s,*l_s;
-    init_params(A_s, k_s, l_s, n);
+    double *s0, *tau0;
+    init_params(A_s, k_s, l_s, s0, tau0, n);
  
 
     dim3 blockDim(256,1);
@@ -256,9 +263,9 @@ void JacobiPCA::find_eigenvectors() {
         // printf("%s\n,","Amax checked");
 
 
-        double s1 =0.0, tau1 =0.0;
-        double *s0 = &s1;
-        double *tau0 = &tau1;
+        // s1 =0.0, tau1 =0.0;
+        // *s0 = 0.0;
+        // *tau0 = 0.0;
 
         // printf("%s\n","kernel A rotate start" );
         kernelRotate<<<gridDim1, blockDim1>>>(A,k_s,l_s, n,s0,tau0);
