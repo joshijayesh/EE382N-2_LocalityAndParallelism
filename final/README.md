@@ -32,6 +32,10 @@ Currently supports these command line arguments:
 * -a {ALGORITHM}: Target algorithm for Eigenvectors (default jacobi). Supported: jacobi, qr
 * -h/--help: Show help message
 
+### Example:
+
+./eigenfaces -s att\_faces/ -d train\_out.txt -t train -m 60
+
 ## TEST
 
 * -s {BASE DIRECTORY OF DATABASE}: program will recursively parse through the directory for all .pgm files
@@ -41,4 +45,8 @@ Currently supports these command line arguments:
 * -t test: Selects the current run as test phase
 * -m {TRAIN TEST SPLIT}: Percentage for train-test split. I.e. -m 60 => 60% training // Should be the same as what you ran for training!
 * -h/--help: Show help message
+
+### Example:
+
+./eigenfaces -s att\_faces/ -i train\_out.txt -k 20 -t test -m 60 -d test\_out.txt
 
